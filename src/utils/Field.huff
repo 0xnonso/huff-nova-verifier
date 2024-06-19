@@ -1,0 +1,252 @@
+#include "../Constants.huff"
+
+/// @dev Compute f^-1 for f \in Fr scalar field
+/// @param x, The field element to invert.
+/// @param mod, The modulus of the field.
+/// @return output, The inverse of the field element.
+#define macro INVERT(mem_ptr, ZERO) = takes (2) returns (1) {
+                                        // [x, mod]
+    0x20                                // [32, x, mod]
+    <mem_ptr>                           // [mem_ptr, 32, x, mod]
+    mstore                              // [x, mod]
+    0x20                                // [32, x, mod]
+    <mem_ptr>                           // [mem_ptr, 32, x, mod]
+    0x20                                // [32, mem_ptr, 32, x, mod]
+    add                                 // [32 + mem_ptr, 32, x, mod]
+    mstore                              // [x, mod]
+    0x20                                // [32, x, mod]
+    <mem_ptr>                           // [mem_ptr, 32, x, mod]
+    0x40                                // [64, mem_ptr, 32, x, mod]
+    add                                 // [64 + mem_ptr, 32, x, mod]
+    mstore                              // [x, mod]
+    <mem_ptr>                           // [mem_ptr, x, mod]
+    0x60                                // [96, mem_ptr, x, mod]
+    add                                 // [96 + mem_ptr, x, mod]
+    mstore                              // [mod]
+    [TWO]                               // [2, mod]
+    dup2                                // [mod, 2, mod]
+    sub                                 // [mod - 2, mod]
+    <mem_ptr>                           // [mem_ptr, mod - 2, mod]
+    0x80                                // [128, mem_ptr, mod - 2, mod]
+    add                                 // [128 + mem_ptr, mod - 2, mod]
+    mstore                              // [mod]
+    <mem_ptr>                           // [mem_ptr, mod]
+    0xa0                                // [160, mem_ptr, mod]
+    add                                 // [160 + mem_ptr, mod]
+    mstore                              // []
+    0x20                                // [32]
+    <ZERO>                              // [0, 32]
+    0xc0                                // [192, 0, 32]
+    <mem_ptr>                           // [mem_ptr, 192, 0, 32]
+    0x05                                // [0x05, mem_ptr, 192, 0, 32]
+    gas                                 // [gas, 0x05, mem_ptr, 192, 0, 32]
+    staticcall                          // [success]
+    finish                              // [jump_dest, success]
+    jumpi                               // []
+
+    <ZERO>
+    <ZERO>
+    revert
+
+    finish:
+        <ZERO>
+        mload
+}
+
+/// @notice Performs modular exponentiation.
+/// @dev This function uses precompiled contract for big modular exponentiation.
+/// @param base The base for exponentiation.
+/// @param exp The exponent.
+/// @param mod The modulus.
+/// @return result, The result of base^exp mod mod.
+#define macro FIELD_POW(mem_ptr, ZERO) = takes (3) returns (1) {
+                                        // [base, exp, mod]
+    0x20                                // [32, base, exp, mod]
+    <mem_ptr>                           // [mem_ptr, 32, base, exp, mod]
+    mstore                              // [base, exp, mod]
+    0x20                                // [32, base, exp, mod]
+    <mem_ptr>                           // [mem_ptr, 32, base, exp, mod]
+    0x20                                // [32, mem_ptr, 32, base, exp, mod]
+    add                                 // [32 + mem_ptr, 32, base, exp, mod]
+    mstore                              // [base, exp, mod]
+    0x20                                // [32, base, exp, mod]
+    <mem_ptr>                           // [mem_ptr, 32, base, exp, mod]
+    0x40                                // [64, mem_ptr, 32, base, exp, mod]
+    add                                 // [64 + mem_ptr, 32, base, exp, mod]
+    mstore                              // [base, exp, mod]
+    <mem_ptr>                           // [mem_ptr, base, exp, mod]
+    0x60                                // [96, mem_ptr, base, exp, mod]
+    add                                 // [96 + mem_ptr, base, exp, mod]
+    mstore                              // [exp, mod]
+    <mem_ptr>                           // [mem_ptr, exp, mod]
+    0x80                                // [128, mem_ptr, exp, mod]
+    add                                 // [128 + mem_ptr, exp, mod]
+    mstore                              // [mod]
+    <mem_ptr>                           // [mem_ptr, mod]
+    0xa0                                // [160, mem_ptr, mod]
+    add                                 // [160 + mem_ptr, mod]
+    mstore                              // []
+    0x20                                // [32]
+    <ZERO>                              // [0, 32]
+    0xc0                                // [192, 0, 32]
+    <mem_ptr>                           // [mem_ptr, 192, 0, 32]
+    0x05                                // [0x05, mem_ptr, 192, 0, 32]
+    [NOT_ZERO]                          // [not(0), 0x05, mem_ptr, 192, 0, 32]
+    staticcall                          // [success]
+    finish                              // [jump_dest, success]
+    jumpi                               // []
+
+    <ZERO>
+    <ZERO>
+    revert
+
+    finish:
+        <ZERO>
+        mload
+}
+
+/// @dev This method is ideal for small exponents (~64 bits or less).
+/// @param base, The base for exponentiation.
+/// @param exp, The small exponent.
+/// @param mod, The modulus.
+/// @return The result of base^exponent mod modulus.
+#define macro POW_SMALL() = takes (3) returns (1) {
+                                        // [base, exp, mod]
+    [ONE]                               // [result = 1, base, exp, mod]
+    dup2                                // [input = base, result, base, exp, mod]
+    [ONE]                               // [count = 1, input, result, base, exp, mod]
+    dup5                                // [exp, count, input, result, base, exp, mod]
+    [ONE]                               // [1, exp, count, input, result, base, exp, mod]
+    add                                 // [end_point = 1 + exp, count, input, result, base, exp, mod]
+    dup1                                // [end_point, end_point, count, input, result, base, exp, mod] 
+    dup3                                // [count, end_point, end_point, count, input, result, base, exp, mod]
+    lt                                  // [count < end_point, end_point, count, input, result, base, exp, mod]
+    iszero                              // [(count < end_point) == 0, end_point, count, input, result, base, exp, mod]
+    finish                              // [jump_dest, (count < end_point) == 0, end_point, count, input, result, base, exp, mod]
+    jumpi                               // [end_point, count, input, result, base, exp, mod]
+
+    loop:
+                                        // [end_point, count, input, result, base, exp, mod]
+        dup6                            // [exp, end_point, count, input, result, base, exp, mod]
+        dup3                            // [count, exp, end_point, count, input, result, base, exp, mod]
+        and                             // [and(count, exp), end_point, count, input, result, base, exp, mod]
+        iszero                          // [and(count, exp) == 0, end_point, count, input, result, base, exp, mod]
+        continue                        // [jump_dest, and(count, exp) == 0, end_point, count, input, result, base, exp, mod]
+        jumpi                           // [end_point, count, input, result, base, exp, mod]
+
+        dup7                            // [mod, end_point, count, input, result, base, exp, mod]
+        dup4                            // [input, mod, end_point, count, input, result, base, exp, mod]
+        dup6                            // [result, input, mod, end_point, count, input, result, base, exp, mod]
+        mulmod                          // [result = result * input % mod, end_point, count, input, result, base, exp, mod]
+        swap4                           // [result, end_point, count, input, result, base, exp, mod]
+        pop                             // [end_point, count, input, result, base, exp, mod]
+
+        continue:
+                                        // [end_point, count, input, result, base, exp, mod]
+            dup7                        // [mod, end_point, count, input, result, base, exp, mod]
+            dup4                        // [input, mod, end_point, count, input, result, base, exp, mod]
+            dup1                        // [input, input, mod, end_point, count, input, result, base, exp, mod]
+            mulmod                      // [input = input * input % mod, end_point, count, input, result, base, exp, mod]
+            swap3                       // [input, end_point, count, input, result, base, exp, mod]
+            pop                         // [end_point, count, input, result, base, exp, mod]
+            dup2                        // [count, end_point, count, input, result, base, exp, mod]
+            dup1                        // [count, count, end_point, count, input, result, base, exp, mod]
+            add                         // [count = count + count, end_point, count, input, result, base, exp, mod]
+            swap2                       // [count, end_point, count, input, result, base, exp, mod]
+            pop                         // [end_point, count, input, result, base, exp, mod]
+            dup1                        // [end_point, end_point, count, input, result, base, exp, mod] 
+            dup3                        // [count, end_point, end_point, count, input, result, base, exp, mod]
+            lt                          // [count < end_point, end_point, count, input, result, base, exp, mod]
+            loop                        // [jump_dest, count < end_point, end_point, count, input, result, base, exp, mod]
+            jumpi                       // [end_point, count, input, result, base, exp, mod]
+
+    finish:
+                                        // [end_point, count, input, result, base, exp, mod]
+        pop pop pop                     // [result, base, exp, mod]
+        swap3 pop                       // [exp, base, result, mod]
+        pop pop                         // [exp, base, result, mod]
+}
+
+/// @notice Reverses the byte order of a 256-bit integer.
+/// @dev This function reverses the byte order of a 256-bit integer.
+/// @param input, The integer to reverse.
+/// @return v, The reversed integer.
+#define macro REVERSE_256() = takes (1) returns (1) {
+                                                                        // [input]
+    dup1                                                                // [input, input]
+    0x00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF  // [0x00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF, input, input]
+    and                                                                 // [and(0x00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF, input), input]
+    [EIGHT]                                                             // [8, and(0x00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF, input), input]
+    shl                                                                 // [and(0x00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF, input) << 8, input]
+    swap1                                                               // [input, and(0x00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF, input) << 8]
+    0xFF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00  // [0xFF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00, input, and(0x00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF, input) << 8]
+    and                                                                 // [and(0xFF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00, input), and(0x00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF, input) << 8]
+    [EIGHT]                                                             // [8, and(0xFF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00, input), and(0x00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF, input) << 8]
+    shr                                                                 // [and(0xFF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00, input) >> 8, and(0x00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF, input) << 8]
+    or                                                                  // [v = or(and(0xFF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00, input) >> 8, and(0x00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF, input) <<     // [v]
+    dup1                                                                // [v, v]
+    0x0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF  // [0x0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF, v, v]
+    and                                                                 // [and(0x0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF, v), v]
+    [SIXTEEN]                                                           // [16, and(0x0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF, v), v]
+    shl                                                                 // [and(0x0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF, v) << 16, v]
+    swap1                                                               // [v, and(0x0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF, v) << 16]
+    0xFFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000  // [0xFFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000, v, and(0x0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF, v) << 16]
+    and                                                                 // [and(0xFFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000, v), and(0x0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF, v) << 16]
+    [SIXTEEN]                                                           // [16, and(0xFFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000, v), and(0x0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF, v) << 16]
+    shr                                                                 // [and(0xFFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000, v) >> 16, and(0x0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF, v) << 16]
+    or                                                                  // [v = or(and(0xFFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000, v) >> 16, and(0x0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF, v) << 1  // [v]
+    dup1                                                                // [v, v]
+    0x00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF  // [0x00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF, v, v]
+    and                                                                 // [and(0x00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF, v), v]
+    [THIRTY_TWO]                                                        // [32, and(0x00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF, v), v]
+    shl                                                                 // [and(0x00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF, v) << 32, v]
+    swap1                                                               // [v, and(0x00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF, v) << 32]
+    0xFFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000  // [0xFFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000, v, and(0x00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF, v) << 32]
+    and                                                                 // [and(0xFFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000, v), and(0x00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF, v) << 32]
+    [THIRTY_TWO]                                                        // [32, and(0xFFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000, v), and(0x00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF, v) << 32]
+    shr                                                                 // [and(0xFFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000, v) >> 32, and(0x00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF, v) << 32]
+    or                                                                  // [v = or(and(0xFFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000, v) >> 32, and(0x00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF, v) << 32)]
+    dup1                                                                // [v, v]
+    0x0000000000000000FFFFFFFFFFFFFFFF0000000000000000FFFFFFFFFFFFFFFF  // [0x0000000000000000FFFFFFFFFFFFFFFF0000000000000000FFFFFFFFFFFFFFFF, v, v]
+    and                                                                 // [and(0x0000000000000000FFFFFFFFFFFFFFFF0000000000000000FFFFFFFFFFFFFFFF, v), v]
+    [SIXTY_FOUR]                                                        // [64, and(0x0000000000000000FFFFFFFFFFFFFFFF0000000000000000FFFFFFFFFFFFFFFF, v), v]
+    shl                                                                 // [and(0x0000000000000000FFFFFFFFFFFFFFFF0000000000000000FFFFFFFFFFFFFFFF, v) << 64, v]
+    swap1                                                               // [v, and(0x0000000000000000FFFFFFFFFFFFFFFF0000000000000000FFFFFFFFFFFFFFFF, v) << 64]
+    0xFFFFFFFFFFFFFFFF0000000000000000FFFFFFFFFFFFFFFF0000000000000000  // [0xFFFFFFFFFFFFFFFF0000000000000000FFFFFFFFFFFFFFFF0000000000000000, v, and(0x0000000000000000FFFFFFFFFFFFFFFF0000000000000000FFFFFFFFFFFFFFFF, v) << 64]
+    and                                                                 // [and(0xFFFFFFFFFFFFFFFF0000000000000000FFFFFFFFFFFFFFFF0000000000000000, v), and(0x0000000000000000FFFFFFFFFFFFFFFF0000000000000000FFFFFFFFFFFFFFFF, v) << 64]
+    [SIXTY_FOUR]                                                        // [64, and(0xFFFFFFFFFFFFFFFF0000000000000000FFFFFFFFFFFFFFFF0000000000000000, v), and(0x0000000000000000FFFFFFFFFFFFFFFF0000000000000000FFFFFFFFFFFFFFFF, v) << 64]
+    shr                                                                 // [and(0xFFFFFFFFFFFFFFFF0000000000000000FFFFFFFFFFFFFFFF0000000000000000, v) >> 64, and(0x0000000000000000FFFFFFFFFFFFFFFF0000000000000000FFFFFFFFFFFFFFFF, v) << 64]
+    or                                                                  // [v = or(and(0xFFFFFFFFFFFFFFFF0000000000000000FFFFFFFFFFFFFFFF0000000000000000, v) >> 64, and(0x0000000000000000FFFFFFFFFFFFFFFF0000000000000000FFFFFFFFFFFFFFFF, v) << 64)]
+    dup1                                                                // [v, v]
+    [ONE_TWENTY_EIGHT]                                                  // [128, v, v]
+    shl                                                                 // [v << 128, v]
+    swap1                                                               // [v, v << 128]
+    [ONE_TWENTY_EIGHT]                                                  // [128, v, v << 128]
+    shr                                                                 // [v >> 128, v << 128]
+    or                                                                  // [v = or(v >> 128, v << 128)]
+}
+
+/// @notice Extracts the 4 limbs of a 256-bit field element in little-endian order.
+/// @param x, The field element.
+/// @return The 4 limbs of the field element.
+#define macro EXTRACT_LIMBS() = takes (1) returns (4) {
+                                                                        // [x]
+    dup1                                                                // [x, x]                                       
+    0x0000000000000000ffffffffffffffff00000000000000000000000000000000  // [0x0000000000000000ffffffffffffffff00000000000000000000000000000000, x, x]
+    and                                                                 // [0x0000000000000000ffffffffffffffff00000000000000000000000000000000 & x, x]
+    [ONE_TWENTY_EIGHT]                                                  // [128, 0x0000000000000000ffffffffffffffff00000000000000000000000000000000 & x, x]
+    shr                                                                 // [(0x0000000000000000ffffffffffffffff00000000000000000000000000000000 & x) >> 128, x]
+    dup2                                                                // [x, (0x0000000000000000ffffffffffffffff00000000000000000000000000000000 & x) >> 128, x]                                                                       
+    0x00000000000000000000000000000000ffffffffffffffff0000000000000000  // [0x00000000000000000000000000000000ffffffffffffffff0000000000000000, x, (0x0000000000000000ffffffffffffffff00000000000000000000000000000000 & x) >> 128, x]
+    and                                                                 // [0x00000000000000000000000000000000ffffffffffffffff0000000000000000 & x, (0x0000000000000000ffffffffffffffff00000000000000000000000000000000 & x) >> 128, x]
+    [SIXTY_FOUR]                                                        // [64, 0x00000000000000000000000000000000ffffffffffffffff0000000000000000 & x, (0x0000000000000000ffffffffffffffff00000000000000000000000000000000 & x) >> 128, x]
+    shr                                                                 // [(0x00000000000000000000000000000000ffffffffffffffff0000000000000000 & x) >> 64, (0x0000000000000000ffffffffffffffff00000000000000000000000000000000 & x) >> 128, x]
+    dup3                                                                // [x, (0x00000000000000000000000000000000ffffffffffffffff0000000000000000 & x) >> 64, (0x0000000000000000ffffffffffffffff00000000000000000000000000000000 & x) >> 128, x]
+    0xffffffffffffffff000000000000000000000000000000000000000000000000  // [0xffffffffffffffff000000000000000000000000000000000000000000000000, x, (0x00000000000000000000000000000000ffffffffffffffff0000000000000000 & x) >> 64, (0x0000000000000000ffffffffffffffff00000000000000000000000000000000 & x) >> 128, x]
+    and                                                                 // [0xffffffffffffffff000000000000000000000000000000000000000000000000 & x, (0x00000000000000000000000000000000ffffffffffffffff0000000000000000 & x) >> 64, (0x0000000000000000ffffffffffffffff00000000000000000000000000000000 & x) >> 128, x]
+    [ONE_NINETY_TWO]                                                    // [192, 0xffffffffffffffff000000000000000000000000000000000000000000000000 & x, (0x00000000000000000000000000000000ffffffffffffffff0000000000000000 & x) >> 64, (0x0000000000000000ffffffffffffffff00000000000000000000000000000000 & x) >> 128, x]
+    shr                                                                 // [(0xffffffffffffffff000000000000000000000000000000000000000000000000 & x) >> 192, (0x00000000000000000000000000000000ffffffffffffffff0000000000000000 & x) >> 64, (0x0000000000000000ffffffffffffffff00000000000000000000000000000000 & x) >> 128, x]
+    swap3                                                               // [x, (0x00000000000000000000000000000000ffffffffffffffff0000000000000000 & x) >> 64, (0x0000000000000000ffffffffffffffff00000000000000000000000000000000 & x) >> 128, (0xffffffffffffffff000000000000000000000000000000000000000000000000 & x) >> 192]
+    0x000000000000000000000000000000000000000000000000ffffffffffffffff  // [0x000000000000000000000000000000000000000000000000ffffffffffffffff, x, (0x00000000000000000000000000000000ffffffffffffffff0000000000000000 & x) >> 64, (0x0000000000000000ffffffffffffffff00000000000000000000000000000000 & x) >> 128, (0xffffffffffffffff000000000000000000000000000000000000000000000000 & x) >> 192]
+    and                                                                 // [0x000000000000000000000000000000000000000000000000ffffffffffffffff & x, (0x00000000000000000000000000000000ffffffffffffffff0000000000000000 & x) >> 64, (0x0000000000000000ffffffffffffffff00000000000000000000000000000000 & x) >> 128, (0xffffffffffffffff000000000000000000000000000000000000000000000000 & x) >> 192]
+}

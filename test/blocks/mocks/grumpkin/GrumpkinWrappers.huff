@@ -1,0 +1,167 @@
+#define macro IDENTITY_WRAPPER() = {
+    IDENTITY(0x0)
+    0x00 mstore
+    0x20 mstore
+    0x40 0x00 return
+}
+
+#define macro ADD_WRAPPER() = {
+    0x64 calldataload
+    0x44 calldataload
+    0x24 calldataload
+    0x04 calldataload
+    ADD(0x0, 0x0)
+    0x00 mstore
+    0x20 mstore
+    0x40 0x00 return
+}
+
+#define macro IS_IDENTITY_WRAPPER() = {
+    0x24 calldataload
+    0x04 calldataload
+    IS_IDENTITY(0x0)
+    0x00 mstore
+    0x20 mstore
+    0x40 0x00 return
+}
+
+#define macro TO_AFFINE_WRAPPER() = {
+    0x44 calldataload
+    0x24 calldataload
+    0x04 calldataload
+    TO_AFFINE(0x0, 0x0)
+    0x00 mstore
+    0x20 mstore
+    0x40 0x00 return
+}
+
+#define macro MUL_BY_3B_WRAPPER() = {
+    0x04 calldataload
+    MUL_BY_3B()
+    0x00 mstore
+    0x20 0x00 return
+}
+
+#define macro NEGATE_WRAPPER() = {
+    0x24 calldataload
+    0x04 calldataload
+    NEGATE()
+    0x00 mstore
+    0x20 mstore
+    0x40 0x00 return
+}
+
+#define macro NEGATE_BASE_WRAPPER() = {
+    0x04 calldataload
+    NEGATE_BASE()
+    0x00 mstore
+    0x20 0x00 return
+}
+
+#define macro NEGATE_SCALAR_WRAPPER() = {
+    0x04 calldataload
+    NEGATE_SCALAR()
+    0x00 mstore
+    0x20 0x00 return
+}
+
+#define macro DOUBLE_WRAPPER() = {
+    0x24 calldataload
+    0x04 calldataload
+    DOUBLE(0x0, 0x0)
+    0x00 mstore
+    0x20 mstore
+    0x40 0x00 return
+}
+
+#define macro SCALAR_MUL_WRAPPER() = {
+    0x44 calldataload
+    0x24 calldataload
+    0x04 calldataload
+    SCALAR_MUL(0x0, 0x0)
+    0x00 mstore
+    0x20 mstore
+    0x40 0x00 return
+}
+
+#define macro MULTI_SCALAR_MUL_WRAPPER() = {
+    0x24 calldataload
+    0x04 calldataload
+    MULTI_SCALAR_MUL(0x0, 0x0)
+    0x00 mstore
+    0x20 mstore
+    0x40 0x00 return
+}
+
+#define macro DECOMPRESS_WRAPPER() = {
+    0x04 calldataload
+    DECOMPRESS(0x0, 0x0)
+    0x00 mstore
+    0x20 mstore
+    0x40 0x00 return
+}
+
+#define macro GET_AT_WRAPPER() = {
+    0x44 calldataload
+    0x24 calldataload
+    0x04 calldataload
+    GET_AT()
+    0x00 mstore
+    0x20 0x00 return
+}
+
+#define macro MULTI_SCALAR_MUL_SERIAL_WRAPPER() = {
+    // MULTI_SCALAR_MUL_SERIAL()
+    // 0x00 0x00 return
+}
+
+
+#define macro MAIN() = takes (0) returns (0) {
+    0x00 calldataload 0xE0 shr
+
+    dup1 0x124eaee6 eq identity jumpi
+    dup1 0x82d23b8a eq add1 jumpi
+    dup1 0xed41ea5d eq is_identity jumpi
+    dup1 0x0095d58e eq to_affine jumpi
+    dup1 0x07a46111 eq mul_by_3b jumpi
+    dup1 0xfb6b9e9a eq negate jumpi
+    dup1 0x76ce8621 eq negateBase jumpi
+    dup1 0x94a88a36 eq negateScalar jumpi
+    dup1 0xed0fc4f0 eq double jumpi
+    dup1 0x40a05867 eq scalarMul jumpi
+    // dup1 0x9a631d04 eq multiScalarMul jumpi
+    dup1 0x13bc64ee eq decompress jumpi
+    dup1 0x433e4e6b eq getAt jumpi
+    // dup1 0x3053f6f1 eq multiScalarMulSerial jumpi
+
+    0x00 0x00 revert
+
+    identity:
+        IDENTITY_WRAPPER()
+    add1:
+        ADD_WRAPPER()
+    is_identity:
+        IS_IDENTITY_WRAPPER()
+    to_affine:
+        TO_AFFINE_WRAPPER()
+    mul_by_3b:
+        MUL_BY_3B_WRAPPER()
+    negate:
+        NEGATE_WRAPPER()
+    negateBase:
+        NEGATE_BASE_WRAPPER()
+    negateScalar:
+        NEGATE_SCALAR_WRAPPER()
+    double:
+        DOUBLE_WRAPPER()
+    scalarMul:
+        SCALAR_MUL_WRAPPER()
+    // multiScalarMul:
+    //     MULTI_SCALAR_MUL_WRAPPER()
+    decompress:
+        DECOMPRESS_WRAPPER()
+    getAt:
+        GET_AT_WRAPPER()
+    // multiScalarMulSerial:
+    //     MULTI_SCALAR_MUL_SERIAL_WRAPPER()
+}

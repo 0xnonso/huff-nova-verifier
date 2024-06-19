@@ -1,0 +1,62 @@
+/// The prime modulus of the finite field over which the Bn256/Grumpkin curve is defined.
+#define constant P_MOD              = 0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47
+/// The order of the base point of the Bn256/Grumpkin elliptic curve.
+#define constant R_MOD              = 0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001
+/// Coefficient in the Bn256 equation: y^2 = x^3 + B
+#define constant BN256_B            = 0x03
+/// Coefficient in the Grumpkin equation.
+#define constant G_B                = 0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593effffff0
+
+#define constant V_P_MOD            = 0x40000000000000000000000000000000224698FC0994A8DD8C46EB2100000001
+#define constant V_R_MOD            = 0x40000000000000000000000000000000224698FC094CF91B992D30ED00000001
+#define constant V_THREE_OVER_TWO   = 0x2000000000000000000000000000000011234C7E04CA546EC623759080000002
+#define constant V_P_MOD_MINUS_ONE  = 0x40000000000000000000000000000000224698FC0994A8DD8C46EB2100000000
+#define constant V_DOUBLE_P         = 0x80000000000000000000000000000000448D31F8132951BB188DD64200000002
+#define constant V_TRIPLE_P         = 0xC000000000000000000000000000000066D3CAF41CBDFA98A4D4C16300000003
+
+#define constant P_P_MOD            = 0x40000000000000000000000000000000224698FC094CF91B992D30ED00000001
+#define constant P_R_MOD            = 0x40000000000000000000000000000000224698FC0994A8DD8C46EB2100000001
+#define constant P_THREE_OVER_TWO   = 0x2000000000000000000000000000000011234c7e04a67c8dcc96987680000002
+#define constant P_P_MOD_MINUS_ONE  = 0x40000000000000000000000000000000224698fc094cf91b992d30ed00000000
+#define constant P_DOUBLE_P         = 0x80000000000000000000000000000000448d31f81299f237325a61da00000002
+#define constant P_TRIPLE_P         = 0xc000000000000000000000000000000066d3caf41be6eb52cb8792c700000003
+
+#define constant ONE                = 0x01
+#define constant TWO                = 0x02
+#define constant THREE              = 0x03
+#define constant FOUR               = 0x04
+#define constant FIVE               = 0x05
+#define constant SIX                = 0x06
+#define constant SEVEN              = 0x07
+#define constant EIGHT              = 0x08
+#define constant NINE               = 0x09
+#define constant TEN                = 0x0a
+#define constant ELEVEN             = 0x0b
+#define constant TWELVE             = 0x0c
+#define constant THIRTEEN           = 0x0d
+#define constant FOURTEEN           = 0x0e
+#define constant FIFTEEN            = 0x0f
+#define constant SIXTEEN            = 0x10
+#define constant SEVENTEEN          = 0x11
+#define constant EIGHTEEN           = 0x12
+#define constant NINETEEN           = 0x13
+#define constant TWENTY             = 0x14
+#define constant TWENTY_ONE         = 0x15
+#define constant TWENTY_TWO         = 0x16
+#define constant TWENTY_THREE       = 0x17
+#define constant TWENTY_FOUR        = 0x18
+#define constant TWENTY_FIVE        = 0x19
+#define constant TWENTY_SIX         = 0x1a
+#define constant TWENTY_SEVEN       = 0x1b
+#define constant TWENTY_EIGHT       = 0x1c
+#define constant TWENTY_NINE        = 0x1d
+#define constant THIRTY             = 0x1e
+
+#define constant THIRTY_ONE         = 0x1f
+#define constant THIRTY_TWO         = 0x20
+#define constant SIXTY_FOUR         = 0x40
+#define constant TWO_FIFTY_SIX      = 0x100
+
+#define constant ONE_TWENTY_EIGHT   = 0x80
+#define constant ONE_NINETY_TWO     = 0xc0
+#define constant NOT_ZERO           = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff

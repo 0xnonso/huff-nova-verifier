@@ -7,6 +7,15 @@ optimizer = true
 optimizer_runs = 200 # Default amount
 ffi = true
 fuzz_runs = 1_000
+fs_permissions = [
+  { access = "read", path = "./test/utils/mocks/CommonUtilsWrappers.huff" },
+  { access = "read", path = "./test/utils/mocks/FieldWrappers.huff" },
+  { access = "read", path = "./test/utils/mocks/SqrtWrappers.huff" },
+  { access = "read", path = "./test/blocks/mocks/grumpkin/Bn256Wrappers.huff" },
+  { access = "read", path = "./test/blocks/mocks/grumpkin/GrumpkinWrappers.huff" },
+  { access = "read", path = "./test/blocks/mocks/pasta/PallasWrappers.huff" },
+  { access = "read", path = "./test/blocks/mocks/pasta/VestaWrappers.huff" },
+]
 remappings = [
   "forge-std=lib/forge-std/src/",
   "foundry-huff=lib/foundry-huff/src/",

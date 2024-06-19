@@ -1,0 +1,893 @@
+/// SPDX-License-Identifier: MIT
+#include "../../Constants.huff"
+#include "../../utils/Field.huff"
+#include "../../utils/Sqrt.huff"
+
+
+/// @dev Defines the identity element (point at infinity) for the Grumpkin curve. The identity 
+///      element is a special point that acts as the 'zero' element in point addition.
+/// @return The identity element represented in the curve's coordinate system.
+#define macro IDENTITY(ZERO) = takes (0) returns (2) {
+    <ZERO>
+    <ZERO>
+}
+
+/// @dev Adds two points(p1, p2) on the Grumpkin curve.
+/// @param p1 The first point to add.
+/// @param p2 The second point to add.
+/// @return The result of adding p1 and p2, another point on the curve.
+#define macro ADD(mem_ptr, ZERO) = takes (4) returns (2) {
+                                        // [p1.x, p1.y, p2.x, p2.y]
+    [ONE]                               // [self_z = 1, p1.x, p1.y, p2.x, p2.y]
+    [ONE]                               // [rhs_z = 1, self_z, p1.x, p1.y, p2.x, p2.y]
+    dup6                                // [p2.y, rhs_z, self_z, p1.x, p1.y, p2.x, p2.y]
+    dup6                                // [p2.x, p2.y, rhs_z, self_z, p1.x, p1.y, p2.x, p2.y]
+    IS_IDENTITY(0x0)                    // [is_identity(p2.x, p2.y), rhs_z, self_z, p1.x, p1.y, p2.x, p2.y]
+    dup5                                // [p1.y, is_identity(p2.x, p2.y), rhs_z, self_z, p1.x, p1.y, p2.x, p2.y]
+    dup5                                // [p1.x, p1.y, is_identity(p2.x, p2.y), rhs_z, self_z, p1.x, p1.y, p2.x, p2.y]
+    IS_IDENTITY(0x0)                    // [is_identity(p1.x, p1.y), is_identity(p2.x, p2.y), rhs_z, self_z, p1.x, p1.y, p2.x, p2.y]
+    dup2                                // [is_identity(p2.x, p2.y), is_identity(p1.x, p1.y), is_identity(p2.x, p2.y), rhs_z, self_z, p1.x, p1.y, p2.x, p2.y]
+    dup2                                // [is_identity(p1.x, p1.y), is_identity(p2.x, p2.y), is_identity(p1.x, p1.y), is_identity(p2.x, p2.y), rhs_z, self_z, p1.x, p1.y, p2.x, p2.y]
+    and                                 // [is_identity(p1.x, p1.y) && is_identity(p2.x, p2.y), is_identity(p1.x, p1.y), is_identity(p2.x, p2.y), rhs_z, self_z, p1.x, p1.y, p2.x, p2.y]
+    iszero                              // [(is_identity(p1.x, p1.y) && is_identity(p2.x, p2.y)) == 0, is_identity(p1.x, p1.y), is_identity(p2.x, p2.y), rhs_z, self_z, p1.x, p1.y, p2.x, p2.y]
+    continue1                           // [jump_dest, (is_identity(p1.x, p1.y) && is_identity(p2.x, p2.y)) == 0, is_identity(p1.x, p1.y), is_identity(p2.x, p2.y), rhs_z, self_z, p1.x, p1.y, p2.x, p2.y]
+    jumpi                               // [is_identity(p1.x, p1.y), is_identity(p2.x, p2.y), rhs_z, self_z, p1.x, p1.y, p2.x, p2.y]
+
+    pop pop pop pop pop pop pop pop     // []
+    IDENTITY(0x0)                       // [0, 0]
+    finish
+    jump
+
+    continue1:
+
+                                        // [is_identity(p1), is_identity(p2), rhs_z, self_z, p1.x, p1.y, p2.x, p2.y]                  
+        iszero
+        continue2
+        jumpi
+                                        // [is_identity(p2), rhs_z, self_z, p1.x, p1.y, p2.x, p2.y]
+        <ZERO>                          // [self_x = 0, is_identity(p2), rhs_z, self_z, p1.x, p1.y, p2.x, p2.y]
+        swap4                           // [p1.x, is_identity(p2), rhs_z, self_z, self_x, p1.y, p2.x, p2.y]
+        pop                             // [is_identity(p2), rhs_z, self_z, self_x, p1.y, p2.x, p2.y]
+        [ONE]                           // [self_y = 1, is_identity(p2), rhs_z, self_z, self_x, p1.y, p2.x, p2.y]
+        swap5                           // [p1.y, is_identity(p2), rhs_z, self_z, self_x, self_y, p2.x, p2.y]
+        pop                             // [is_identity(p2), rhs_z, self_z, self_x, self_y, p2.x, p2.y]
+        <ZERO>                          // [self_z = 0, is_identity(p2), rhs_z, self_z, self_x, self_y, p2.x, p2.y]
+        swap3                           // [self_z, is_identity(p2), rhs_z, self_z, self_x, self_y, p2.x, p2.y]
+        pop                             // [is_identity(p2), rhs_z, self_z, self_x, self_y, p2.x, p2.y]
+
+    continue2:
+                                        // [is_identity(p2), rhs_z, self_z, self_x, self_y, p2.x, p2.y]
+        iszero
+        continue3
+        jumpi
+
+                                        // [rhs_z, self_z, self_x, self_y, p2.x, p2.y]
+        <ZERO>                          // [rhs_x = 0, rhs_z, self_z, self_x, self_y, p2.x, p2.y]
+        swap5                           // [p2.x, rhs_z, self_z, self_x, self_y, rhs_x, p2.y]
+        pop                             // [rhs_z, self_z, self_x, self_y, rhs_x, p2.y]
+        [ONE]                           // [rhs_y = 1, rhs_z, self_z, self_x, self_y, rhs_x, p2.y]
+        swap6                           // [p2.y, rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        pop                             // [rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        <ZERO>                          // [rhs_z = 0, rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        swap1                           // [rhs_z, rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        pop                             // [rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+
+    continue3:
+                                        // [rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        [R_MOD]                         // [R_MOD, rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup6                            // [rhs_x, R_MOD, rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup5                            // [self_x, rhs_x, R_MOD, rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        mulmod                          // [t[0] = self_x * rhs_x % R_MOD, rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+
+        [R_MOD]                         // [R_MOD, t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup8                            // [rhs_y, R_MOD, t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup7                            // [self_y, rhs_y, R_MOD, t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        mulmod                          // [t[1] = self_y * rhs_y % R_MOD, t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+
+        [R_MOD]                         // [R_MOD, t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup4                            // [rhs_z, R_MOD, t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup6                            // [self_z, rhs_z, R_MOD, t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        mulmod                          // [t[2] = self_z * rhs_z % R_MOD, t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+
+        [R_MOD]                         // [R_MOD, t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup8                            // [self_y, R_MOD, t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup8                            // [self_x, self_y, R_MOD, t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        addmod                          // [t[3] = self_x + self_y % R_MOD, t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+
+        [R_MOD]                         // [R_MOD, t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup11                           // [rhs_y, R_MOD, t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup11                           // [rhs_x, rhs_y, R_MOD, t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        addmod                          // [t[4] = rhs_x + rhs_y % R_MOD, t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        
+        [R_MOD]                         // [R_MOD, t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        swap2                           // [t[3], t[4], R_MOD, t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        mulmod                          // [t[3] = t[3] * t[4] % R_MOD, t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+
+        [R_MOD]                         // [R_MOD, t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup4                            // [t[1], R_MOD, t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup6                            // [t[0], t[1], R_MOD, t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        addmod                          // [t[4] = t[0] + t[1] % R_MOD, t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+
+        [R_MOD]                         // [R_MOD, t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup2                            // [t[4], R_MOD, t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        NEGATE_SCALAR()                 // [NEGATE_SCALAR(t[4]), R_MOD, t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup4                            // [t[3], NEGATE_SCALAR(t[4]), R_MOD, t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        addmod                          // [t[3] = t[3] + NEGATE_SCALAR(t[4]) % R_MOD, t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        swap2                           // [t[3], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        pop                             // [t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        pop                             // [t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+
+        [R_MOD]                         // [R_MOD, t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup7                            // [self_z, R_MOD, t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup9                            // [self_x, self_z, R_MOD, t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        addmod                          // [t[4] = self_x + self_z % R_MOD, t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+
+        [R_MOD]                         // [R_MOD, t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup7                            // [rhs_z, R_MOD, t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup12                           // [rhs_x, rhs_z, R_MOD, t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        addmod                          // [t[5] = rhs_x + rhs_z % R_MOD, t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+
+        [R_MOD]                         // [R_MOD, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        swap2                           // [t[4], t[5], R_MOD, t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        mulmod                          // [t[4] = t[4] * t[5] % R_MOD, t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+
+        [R_MOD]                         // [R_MOD, t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup4                            // [t[2], R_MOD, t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup7                            // [t[0], t[2], R_MOD, t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        addmod                          // [t[5] = t[0] + t[2] % R_MOD, t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+
+        NEGATE_SCALAR()                 // [NEGATE_SCALAR(t[5]), t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        [R_MOD]                         // [R_MOD, NEGATE_SCALAR(t[5]), t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        swap2                           // [t[4], NEGATE_SCALAR(t[5]), R_MOD, t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        addmod                          // [t[4] = t[4] + NEGATE_SCALAR(t[5]) % R_MOD, t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+
+        [R_MOD]                         // [R_MOD, t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup8                            // [self_z, R_MOD, t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup11                           // [self_y, self_z, R_MOD, t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        addmod                          // [t[5] = self_y + self_z % R_MOD, t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+
+        [R_MOD]                         // [R_MOD, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup8                            // [rhs_z, R_MOD, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup14                           // [rhs_y, rhs_z, R_MOD, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        addmod                          // [x3 = rhs_y + rhs_z % R_MOD, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+
+        [R_MOD]                         // [R_MOD, x3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        swap2                           // [t[5], x3, R_MOD, t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        mulmod                          // [t[5] = t[5] * x3 % R_MOD, t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+
+        [R_MOD]                         // [R_MOD, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup5                            // [t[2], R_MOD, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup7                            // [t[1], t[2], R_MOD, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        addmod                          // [x3 = t[1] + t[2] % R_MOD, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+
+        NEGATE_SCALAR()                 // [NEGATE_SCALAR(x3), t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        [R_MOD]                         // [R_MOD, NEGATE_SCALAR(x3), t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        swap2                           // [t[5], NEGATE_SCALAR(x3), R_MOD, t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        addmod                          // [t[5] = t[5] + NEGATE_SCALAR(x3) % R_MOD, t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+
+        [R_MOD]                         // [R_MOD, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup5                            // [t[2], R_MOD, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        MUL_BY_3B()                     // [x3 = MUL_BY_3B(t[2]), R_MOD, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        mod                             // [z3 = x3 % R_MOD, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+
+        [R_MOD]                         // [R_MOD, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup2                            // [z3, R_MOD, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        NEGATE_SCALAR()                 // [NEGATE_SCALAR(z3), R_MOD, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup8                            // [t[1], NEGATE_SCALAR(z3), R_MOD, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        addmod                          // [x3 = t[1] +  NEGATE_SCALAR(z3) % R_MOD, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+
+        [R_MOD]                         // [R_MOD, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup3                            // [z3, R_MOD, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup9                            // [t[1], z3, R_MOD, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        addmod                          // [z3 = t[1] + z3 % R_MOD, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        swap2                           // [z3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        pop                             // [x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+
+        [R_MOD]                         // [R_MOD, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup3                            // [z3, R_MOD, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup3                            // [x3, z3, R_MOD, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        mulmod                          // [y3 = x3 * z3 % R_MOD, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+
+        [R_MOD]                         // [R_MOD, y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup10                           // [t[0], R_MOD, y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup1                            // [t[0], t[0], R_MOD, y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        addmod                          // [t[1] = t[0] + t[0] % R_MOD, y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup10                           // [t[0], t[1], y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        [R_MOD]                         // [R_MOD, t[0], t[1], y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        swap2                           // [t[1], t[0], R_MOD, y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        addmod                          // [t[1] = t[1] + t[0] % R_MOD, y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+
+        [R_MOD]                         // [R_MOD, t[1], y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        swap1                           // [t[1], R_MOD, y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        mod                             // [t[1] = t[1] % R_MOD, y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        swap8                           // [t[1], y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        pop
+
+        [R_MOD]                         // [R_MOD, y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup6                            // [t[4], R_MOD, y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        MUL_BY_3B()                     // [MUL_BY_3B(t[4]), R_MOD, y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        mod                             // [t[4] = MUL_BY_3B(t[4]) % R_MOD, y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        swap5                           // [t[4], y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        pop                             // [y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+
+        [R_MOD]                         // [R_MOD, y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup6                            // [t[4], R_MOD, y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup10                           // [t[1], t[4], R_MOD, y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        mulmod                          // [t[0] = t[1] * t[4] % R_MOD, y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        swap9                           // [t[0], y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        pop                             // [y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        
+        dup9                            // [t[0], y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        [R_MOD]                         // [R_MOD, t[0], y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        swap2                           // [y3, t[0], R_MOD, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        addmod                          // [y3 = y3 + t[0] % R_MOD, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+
+        [R_MOD]                         // [R_MOD, y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup6                            // [t[4], R_MOD, y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup6                            // [t[5], t[4], R_MOD, y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        mulmod                          // [t[0] = t[5] * t[4] % R_MOD, y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+
+        [R_MOD]                         // [R_MOD, t[0], y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup2                            // [t[0], R_MOD, t[0], y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        NEGATE_SCALAR()                 // [NEGATE_SCALAR(t[0]), R_MOD, t[0], y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        [R_MOD]                         // [R_MOD, NEGATE_SCALAR(t[0]), R_MOD, t[0], y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup6                            // [x3, R_MOD, NEGATE_SCALAR(t[0]), R_MOD, t[0], y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup11                           // [t[3], x3, R_MOD, NEGATE_SCALAR(t[0]), R_MOD, t[0], y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        mulmod                          // [x3 = t[3] * x3 % R_MOD, NEGATE_SCALAR(t[0]), R_MOD, t[0], y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        addmod                          // [x3 = x3 + NEGATE_SCALAR(t[0]) % R_MOD, t[0], y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        swap3
+        pop pop
+
+        [R_MOD]                         // [R_MOD, y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        [R_MOD]                         // [R_MOD, R_MOD, y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup10                           // [t[1], R_MOD, R_MOD, y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup9                            // [t[3], t[1], R_MOD, R_MOD, y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        mulmod                          // [t[0] = t[3] * t[1] % R_MOD, R_MOD, y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+
+        [R_MOD]                         // [R_MOD, t[0], R_MOD, y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup6                            // [z3, R_MOD, t[0], R_MOD, y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        dup8                            // [t[5], z3, R_MOD, t[0], R_MOD, y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        mulmod                          // [z3 = t[5] * z3 % R_MOD, t[0], R_MOD, y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        addmod                          // [z3 = z3 * t[0] % R_MOD, y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        
+        swap3                           // [z3, y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        pop                             // [y3, x3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        swap1                           // [x3, y3, z3, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        TO_AFFINE(<mem_ptr>, <ZERO>)    // [x, y = TO_AFFINE(x3, y3, z3), t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, rhs_x, rhs_y]
+        swap12                          // [rhs_x, y, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, x, rhs_y]
+        pop                             // [y, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, x, rhs_y]
+        swap12                          // [rhs_y, t[5], t[4], t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, x, y]
+        pop pop pop                     // [t[3], t[2], t[1], t[0], rhs_z, self_z, self_x, self_y, x, y]
+        pop pop pop                     // [t[0], rhs_z, self_z, self_x, self_y, x, y]
+        pop pop pop                     // [self_x, self_y, x, y]
+        pop pop                         // [x, y] 
+    finish:
+}
+
+/// @dev Checks if a given point on the Grumpkin curve is the identity element (point at infinity).
+/// @param p The point to be checked.
+/// @return bool. True if the point is the identity element, false otherwise.
+#define macro IS_IDENTITY(ZERO) = takes (2) returns (1) {
+                                        // [p.x, p.y]
+    iszero                              // [p.x == 0, p.y]
+    swap1                               // [p.y, p.x == 0]
+    iszero                              // [p.y == 0, p.x == 0]
+    and                                 // [p.y == 0 && p.x == 0]
+}
+
+/// @dev Converts a point from projective to affine coordinates on the Grumpkin curve.
+///      Affine coordinates are the common (x, y) representation, while projective coordinates add a third 'z'
+///      coordinate for efficiency.
+/// @param x_input The x coordinate in projective coordinates to be converted.
+/// @param y_input The y coordinate in projective coordinates to be converted.
+/// @param z_input The z coordinate in projective coordinates to be converted.
+/// @return The point in affine coordinates.
+#define macro TO_AFFINE(mem_ptr, ZERO) = takes (3) returns (2) {
+                                        // [x_input, y_input, z_input]
+    dup3                                // [z_input, x_input, y_input, z_input]
+    iszero                              // [z_input == 0, x_input, y_input, z_input]
+    iszero                              // [(z_input == 0) == 0, x_input, y_input, z_input]
+    continue0                           // [jumpdest, (z_input == 0) == 0, x_input, y_input, z_input]
+    jumpi                               // [x_input, y_input, z_input]
+
+    continue0:
+                                        // [x_input, y_input, z_input]
+        [R_MOD]                         // [R_MOD, x_input, y_input, z_input]
+        [R_MOD]                         // [R_MOD, R_MOD, x_input, y_input, z_input]
+        dup5                            // [z_input, R_MOD, R_MOD, x_input, y_input, z_input]
+        INVERT(<mem_ptr>, <ZERO>)       // [zinv = INVERT(z_input, R_MOD), R_MOD, x_input, y_input, z_input]
+        [R_MOD]                         // [R_MOD, zinv, R_MOD, x_input, y_input, z_input]
+        dup2                            // [zinv, R_MOD, zinv, R_MOD, x_input, y_input, z_input]
+        dup6                            // [y_input, zinv, R_MOD, zinv, R_MOD, x_input, y_input, z_input]
+        mulmod                          // [y = y_input * zinv % R_MOD, zinv, R_MOD, x_input, y_input, z_input]
+        swap5                           // [z_input, zinv, R_MOD, x_input, y_input, y]
+        pop                             // [zinv, R_MOD, x_input, y_input, y]
+        dup3                            // [x_input, zinv, R_MOD, x_input, y_input, y]
+        mulmod                          // [x = x_input * zinv % R_MOD, x_input, y_input, y]
+        swap2                           // [y_input, x_input, x, y]
+        pop pop
+}
+
+/// @dev Multiplies the curve coefficient B by 3 and applies it to a given scalar.
+/// @param t, The scalar to be multiplied.
+/// @return The resulting point after multiplication.
+#define macro MUL_BY_3B() = takes (1) returns (1) {
+                                        // [t]
+    0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593efffffce // [0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593efffffce, t]
+    [R_MOD]                             // [R_MOD, 0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593efffffce, t]
+    swap2                               // [t, 0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593efffffce, R_MOD]
+    mulmod                              // [t * 0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593efffffce % R_MOD]
+}
+
+/// @dev Negates a point on the Grumpkin curve. This operation inverts the point over the x-axis on the elliptic curve.
+/// @param p The point on the Grumpkin curve to be negated.
+/// @return The negated point, also on the Grumpkin curve.
+#define macro NEGATE() = takes (2) returns (2) {
+                                        // [p.x, p.y]
+    [P_MOD]                             // [P_MOD, p.x, p.y]
+    dup3                                // [p.y, P_MOD, p.x, p.y]
+    mod                                 // [p.y % P_MOD, p.x, p.y]
+    [P_MOD]                             // [P_MOD, p.y % P_MOD, p.x, p.y]
+    sub                                 // [P_MOD - (p.y % P_MOD), p.x, p.y]
+    swap2                               // [p.y, p.x, P_MOD - (p.y % P_MOD)]
+    pop                                 // [p.x, P_MOD - (p.y % P_MOD)]
+}
+
+/// @dev Negates the base point of the Grumpkin curve. This is a specialized case of point negation for the curve's base point.
+/// @param scalar The scalar value to be negated.
+/// @return The negated base point on the Grumpkin curve.
+#define macro NEGATE_BASE() = takes (1) returns (1) {
+                                        // [scalar]
+    [P_MOD]                             // [P_MOD, scalar]
+    swap1                               // [scalar, P_MOD]
+    mod                                 // [scalar % P_MOD]
+    [P_MOD]                             // [P_MOD, scalar % P_MOD]
+    sub                                 // [P_MOD - (scalar % P_MOD)]
+}
+
+/// @dev Negates a scalar value. This operation performs modular arithmetic negation of a scalar.
+/// @param scalar The scalar value to be negated.
+/// @return The negated scalar value.
+#define macro NEGATE_SCALAR() = takes (1) returns (1) {
+                                        // [scalar]
+    [R_MOD]
+    swap1
+    mod
+    [R_MOD]
+    sub
+}
+
+/// @dev Performs the point doubling operation on the Grumpkin curve.
+/// @param p The point on the Grumpkin curve to be doubled.
+/// @return The doubled point, another point on the curve.
+#define macro DOUBLE(mem_ptr, ZERO) = takes (2) returns (2) {
+                                        // [p.x, p.y]
+    dup2                                // [p.y, p.x, p.y]
+    dup2                                // [p.x, p.y, p.x, p.y]
+    IS_IDENTITY(<ZERO>)                 // [is_identity(p.x, p.y), p.x, p.y]
+    finish                              // [jump_dest, is_identity(p.x, p.y), p.x, p.y]
+    jumpi                               // [p.x, p.y]
+
+    [R_MOD]                             // [R_MOD, p.x, p.y]
+    dup2                                // [p.x, R_MOD, p.x, p.y]
+    dup1                                // [p.x, p.x, R_MOD, p.x, p.y]
+    mulmod                              // [t0 = p.x * p.x % R_MOD, p.x, p.y]
+
+    [R_MOD]                             // [R_MOD, t0, p.x, p.y]
+    dup4                                // [p.y, R_MOD, t0, p.x, p.y]
+    dup1                                // [p.y, p.y, R_MOD, t0, p.x, p.y]
+    mulmod                              // [t1 = p.y * p.y % R_MOD, t0, p.x, p.y]
+
+    [R_MOD]                             // [R_MOD, t1, t0, p.x, p.y]
+    dup5                                // [p.y, R_MOD, t1, t0, p.x, p.y]
+    dup5                                // [p.x, p.y, R_MOD, t1, t0, p.x, p.y]
+    mulmod                              // [t3 = p.x * p.y % R_MOD, t1, t0, p.x, p.y]
+    dup1                                // [t3, t3, t1, t0, p.x, p.y]
+    [R_MOD]                             // [R_MOD, t3, t3, t1, t0, p.x, p.y]
+    swap2                               // [t3, t3, R_MOD, t1, t0, p.x, p.y]
+    addmod                              // [t3 = t3 + t3 % R_MOD, t1, t0, p.x, p.y]
+
+    [R_MOD]                             // [R_MOD, t3, t1, t0, p.x, p.y]
+    dup5                                // [p.x, R_MOD, t3, t1, t0, p.x, p.y]
+    dup1                                // [p.x, p.x, R_MOD, t3, t1, t0, p.x, p.y]
+    addmod                              // [z3 = p.x + p.x % R_MOD, t3, t1, t0, p.x, p.y]
+
+    [R_MOD]                             // [R_MOD, z3, t3, t1, t0, p.x, p.y]
+    [ONE]                               // [1, R_MOD, z3, t3, t1, t0, p.x, p.y]
+    MUL_BY_3B()                         // [y3 = MUL_BY_3B(1), R_MOD, z3, t3, t1, t0, p.x, p.y]
+    mod                                 // [y3 = y3 % R_MOD, z3, t3, t1, t0, p.x, p.y]
+
+    [R_MOD]                             // [R_MOD, y3, z3, t3, t1, t0, p.x, p.y]
+    dup2                                // [y3, R_MOD, y3, z3, t3, t1, t0, p.x, p.y]
+    NEGATE_SCALAR()                     // [NEGATE_SCALAR(y3), R_MOD, y3, z3, t3, t1, t0, p.x, p.y]
+    dup6                                // [t1, NEGATE_SCALAR(y3), R_MOD, y3, z3, t3, t1, t0, p.x, p.y]
+    addmod                              // [x3 = t1 + NEGATE_SCALAR(y3) % R_MOD, y3, z3, t3, t1, t0, p.x, p.y]
+
+    [R_MOD]                             // [R_MOD, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    [R_MOD]                             // [R_MOD, R_MOD, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    dup4                                // [y3, R_MOD, R_MOD, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    dup8                                // [t1, y3, R_MOD, R_MOD, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    addmod                              // [y3 = t1 + y3 % R_MOD, R_MOD, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    dup3                                // [x3, y3, R_MOD, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    mulmod                              // [y3 = x3 * y3 % R_MOD, x3, y3, z3, t3, t1, t0, p.x, p.y]
+
+    [R_MOD]                             // [R_MOD, y3, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    dup3                                // [x3, R_MOD, y3, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    dup7                                // [t3, x3, R_MOD, y3, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    mulmod                              // [x3 = t3 * x3 % R_MOD, y3, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    swap2                               // [x3, y3, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    pop                                 // [y3, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    swap2                               // [y3, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    pop                                 // [x3, y3, z3, t3, t1, t0, p.x, p.y]
+
+    dup3                                // [z3, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    MUL_BY_3B()                         // [z3 = MUL_BY_3B(z3), x3, y3, z3, t3, t1, t0, p.x, p.y]
+    swap3                               // [z3, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    pop                                 // [x3, y3, z3, t3, t1, t0, p.x, p.y]
+
+    [R_MOD]                             // [R_MOD, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    dup4                                // [z3, R_MOD, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    mod                                 // [t3 = z3 % R_MOD, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    swap4                               // [t3, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    pop                                 // [x3, y3, z3, t3, t1, t0, p.x, p.y]
+
+    [R_MOD]                             // [R_MOD, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    dup7                                // [t0, R_MOD, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    dup1                                // [t0, t0, R_MOD, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    addmod                              // [z3 = t0 + t0 % R_MOD, x3, y3, z3, t3, t1, t0, p.x, p.y]
+
+    dup7                                // [t0, z3, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    [R_MOD]                             // [R_MOD, t0, z3, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    swap2                               // [z3, t0, R_MOD, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    addmod                              // [t0 = z3 + t0 % R_MOD, x3, y3, z3, t3, t1, t0, p.x, p.y]
+
+    [R_MOD]                             // [R_MOD, t0, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    swap1                               // [t0, R_MOD, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    mod                                 // [t0 = t0 % R_MOD, x3, y3, z3, t3, t1, t0, p.x, p.y]
+
+    dup5                                // [t3, t0, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    [R_MOD]                             // [R_MOD, t3, t0, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    swap2                               // [t0, t3, R_MOD, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    mulmod                              // [t0 = t0 * t3 % R_MOD, x3, y3, z3, t3, t1, t0, p.x, p.y]
+
+    [R_MOD]                             // [R_MOD, t0, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    dup2                                // [t0, R_MOD, t0, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    dup5                                // [y3, t0, R_MOD, t0, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    addmod                              // [y3 = y3 + t0 % R_MOD, t0, x3, y3, z3, t3, t1, t0, p.x, p.y]
+
+    dup10                               // [p.y, y3, t0, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    dup1                                // [p.y, p.y, y3, t0, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    [R_MOD]                             // [R_MOD, p.y, p.y, y3, t0, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    swap2                               // [p.y, p.y, R_MOD, y3, t0, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    addmod                              // [t2 = p.y + p.y % R_MOD, y3, t0, x3, y3, z3, t3, t1, t0, p.x, p.y]
+
+    [R_MOD]                             // [R_MOD, t2, y3, t0, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    dup8                                // [t3, R_MOD, t2, y3, t0, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    dup3                                // [t2, t3, R_MOD, t2, y3, t0, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    mulmod                              // [t0 = t2 * t3 % R_MOD, t2, y3, t0, x3, y3, z3, t3, t1, t0, p.x, p.y]
+
+    [R_MOD]                             // [R_MOD, t0, t2, y3, t0, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    swap1                               // [t0, R_MOD, t2, y3, t0, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    NEGATE_SCALAR()                     // [NEGATE_SCALAR(t0), R_MOD, t2, y3, t0, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    dup6                                // [x3, NEGATE_SCALAR(t0), R_MOD, t2, y3, t0, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    addmod                              // [x3 = x3 + NEGATE_SCALAR(t0) % R_MOD, t2, y3, t0, x3, y3, z3, t3, t1, t0, p.x, p.y]
+
+    [R_MOD]                             // [R_MOD, x3, t2, y3, t0, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    [R_MOD]                             // [R_MOD, R_MOD, x3, t2, y3, t0, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    [R_MOD]                             // [R_MOD, R_MOD, R_MOD, x3, t2, y3, t0, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    dup12                               // [t1, R_MOD, R_MOD, R_MOD, x3, t2, y3, t0, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    dup6                                // [t2, t1, R_MOD, R_MOD, R_MOD, x3, t2, y3, t0, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    mulmod                              // [z3 = t2 * t1 % R_MOD, R_MOD, R_MOD, x3, t2, y3, t0, x3, y3, z3, t3, t1, t0, p.x, p.y]
+
+    dup1                                // [z3, z3, R_MOD, R_MOD, x3, t2, y3, t0, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    addmod                              // [z3 = z3 + z3 % R_MOD, R_MOD, x3, t2, y3, t0, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    dup1                                // [z3, z3, R_MOD, x3, t2, y3, t0, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    addmod                              // [z3 = z3 + z3 % R_MOD, x3, t2, y3, t0, x3, y3, z3, t3, t1, t0, p.x, p.y]
+    swap12                              // [p.y, x3, t2, y3, t0, x3, y3, z3, t3, t1, t0, p.x, z3]
+    pop                                 // [x3, t2, y3, t0, x3, y3, z3, t3, t1, t0, p.x, z3]
+    swap9                               // [t0, t2, y3, t0, x3, y3, z3, t3, t1, x3, p.x, z3]
+    pop pop                             // [y3, t0, x3, y3, z3, t3, t1, x3, p.x, z3]
+    swap8                               // [p.x, t0, x3, y3, z3, t3, t1, x3, y3, z3]
+    pop pop pop                         // [y3, z3, t3, t1, x3, y3, z3]
+    pop pop pop                         // [t1, x3, y3, z3]
+    pop                                 // [x3, y3, z3]
+    TO_AFFINE(<mem_ptr>, <ZERO>)
+
+    finish:
+}
+
+/// @dev Performs scalar multiplication on the Grumpkin curve.
+/// @param p The point on the Grumpkin curve to be multiplied.
+/// @param scalar The scalar by which to multiply the point.
+/// @return The result of scalar multiplication, which is another point on the curve.
+#define macro SCALAR_MUL(mem_ptr, ZERO) = takes (3) returns (2) {
+                                        // [p.x, p.y, scalar]
+    <ZERO>                              // [acc.x, acc.y, byteIndex = 0, p.x, p.y, scalar]
+    IDENTITY(<ZERO>)                    // [acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+
+    loop:
+        DOUBLE(<mem_ptr>, <ZERO>)       // [acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        dup6                            // [scalar, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        dup4                            // [byteIndex, scalar, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        byte                            // [scalar[byteIndex], acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        <ZERO>                          // [bitIndex = 0, scalar[byteIndex], acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        [SEVEN]                         // [7, bitIndex, scalar[byteIndex], acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        sub                             // [7 - bitIndex, scalar[byteIndex], acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        shr                             // [scalar[byteIndex] >> (7 - bitIndex), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        [ONE]                           // [1, scalar[byteIndex] >> (7 - bitIndex), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        and                             // [1 & (scalar[byteIndex] >> (7 - bitIndex)), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        [ONE]                           // [1, 1 & (scalar[byteIndex] >> (7 - bitIndex)), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        eq                              // [1 == 1 & (scalar[byteIndex] >> (7 - bitIndex)), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        iszero                          // [iszero(1 == 1 & (scalar[byteIndex] >> (7 - bitIndex))), acc.x, acc.y, byteIndex p.x, p.y, scalar]
+        finish0                         // [jump_dest, iszero(1 == 1 & (scalar[byteIndex] >> (7 - bitIndex))), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        jumpi                           // [acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+
+        dup5                            // [p.y, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        dup5                            // [p.x, p.y, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        ADD(<mem_ptr>, <ZERO>)          // [p.x, p.y, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+
+        finish0:
+
+        DOUBLE(<mem_ptr>, <ZERO>)       // [acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        dup6                            // [scalar, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        dup4                            // [byteIndex, scalar, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        byte                            // [scalar[byteIndex], acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        [ONE]                           // [bitIndex = 1, scalar[byteIndex], acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        [SEVEN]                         // [7, bitIndex, scalar[byteIndex], acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        sub                             // [7 - bitIndex, scalar[byteIndex], acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        shr                             // [scalar[byteIndex] >> (7 - bitIndex), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        [ONE]                           // [1, scalar[byteIndex] >> (7 - bitIndex), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        and                             // [1 & (scalar[byteIndex] >> (7 - bitIndex)), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        [ONE]                           // [1, 1 & (scalar[byteIndex] >> (7 - bitIndex)), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        eq                              // [1 == 1 & (scalar[byteIndex] >> (7 - bitIndex)), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        iszero                          // [iszero(1 == 1 & (scalar[byteIndex] >> (7 - bitIndex))), acc.x, acc.y, byteIndex p.x, p.y, scalar]
+        finish1                         // [jump_dest, iszero(1 == 1 & (scalar[byteIndex] >> (7 - bitIndex))), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        jumpi                           // [acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+
+        dup5                            // [p.y, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        dup5                            // [p.x, p.y, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        ADD(<mem_ptr>, <ZERO>)          // [p.x, p.y, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+
+        finish1:
+
+        DOUBLE(<mem_ptr>, <ZERO>)       // [acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        dup6                            // [scalar, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        dup4                            // [byteIndex, scalar, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        byte                            // [scalar[byteIndex], acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        [TWO]                           // [bitIndex = 2, scalar[byteIndex], acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        [SEVEN]                         // [7, bitIndex, scalar[byteIndex], acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        sub                             // [7 - bitIndex, scalar[byteIndex], acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        shr                             // [scalar[byteIndex] >> (7 - bitIndex), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        [ONE]                           // [1, scalar[byteIndex] >> (7 - bitIndex), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        and                             // [1 & (scalar[byteIndex] >> (7 - bitIndex)), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        [ONE]                           // [1, 1 & (scalar[byteIndex] >> (7 - bitIndex)), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        eq                              // [1 == 1 & (scalar[byteIndex] >> (7 - bitIndex)), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        iszero                          // [iszero(1 == 1 & (scalar[byteIndex] >> (7 - bitIndex))), acc.x, acc.y, byteIndex p.x, p.y, scalar]
+        finish2                         // [jump_dest, iszero(1 == 1 & (scalar[byteIndex] >> (7 - bitIndex))), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        jumpi                           // [acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+
+        dup5                            // [p.y, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        dup5                            // [p.x, p.y, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        ADD(<mem_ptr>, <ZERO>)          // [p.x, p.y, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+
+        finish2:
+
+        DOUBLE(<mem_ptr>, <ZERO>)       // [acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+
+        dup6                            // [scalar, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        dup4                            // [byteIndex, scalar, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        byte                            // [scalar[byteIndex], acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        [THREE]                         // [bitIndex = 3, scalar[byteIndex], acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        [SEVEN]                         // [7, bitIndex, scalar[byteIndex], acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        sub                             // [7 - bitIndex, scalar[byteIndex], acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        shr                             // [scalar[byteIndex] >> (7 - bitIndex), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        [ONE]                           // [1, scalar[byteIndex] >> (7 - bitIndex), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        and                             // [1 & (scalar[byteIndex] >> (7 - bitIndex)), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        [ONE]                           // [1, 1 & (scalar[byteIndex] >> (7 - bitIndex)), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        eq                              // [1 == 1 & (scalar[byteIndex] >> (7 - bitIndex)), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        iszero                          // [iszero(1 == 1 & (scalar[byteIndex] >> (7 - bitIndex))), acc.x, acc.y, byteIndex p.x, p.y, scalar]
+        finish3                         // [jump_dest, iszero(1 == 1 & (scalar[byteIndex] >> (7 - bitIndex))), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        jumpi                           // [acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+
+        dup5                            // [p.y, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        dup5                            // [p.x, p.y, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        ADD(<mem_ptr>, <ZERO>)          // [p.x, p.y, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+
+        finish3:
+
+        DOUBLE(<mem_ptr>, <ZERO>)       // [acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        dup6                            // [scalar, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        dup4                            // [byteIndex, scalar, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        byte                            // [scalar[byteIndex], acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        [FOUR]                          // [bitIndex = 4, scalar[byteIndex], acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        [SEVEN]                         // [7, bitIndex, scalar[byteIndex], acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        sub                             // [7 - bitIndex, scalar[byteIndex], acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        shr                             // [scalar[byteIndex] >> (7 - bitIndex), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        [ONE]                           // [1, scalar[byteIndex] >> (7 - bitIndex), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        and                             // [1 & (scalar[byteIndex] >> (7 - bitIndex)), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        [ONE]                           // [1, 1 & (scalar[byteIndex] >> (7 - bitIndex)), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        eq                              // [1 == 1 & (scalar[byteIndex] >> (7 - bitIndex)), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        iszero                          // [iszero(1 == 1 & (scalar[byteIndex] >> (7 - bitIndex))), acc.x, acc.y, byteIndex p.x, p.y, scalar]
+        finish4                         // [jump_dest, iszero(1 == 1 & (scalar[byteIndex] >> (7 - bitIndex))), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        jumpi                           // [acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+
+        dup5                            // [p.y, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        dup5                            // [p.x, p.y, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        ADD(<mem_ptr>, <ZERO>)          // [p.x, p.y, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+
+        finish4:
+
+        DOUBLE(<mem_ptr>, <ZERO>)       // [acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+
+        dup6                            // [scalar, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        dup4                            // [byteIndex, scalar, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        byte                            // [scalar[byteIndex], acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        [FIVE]                          // [bitIndex = 5, scalar[byteIndex], acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        [SEVEN]                         // [7, bitIndex, scalar[byteIndex], acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        sub                             // [7 - bitIndex, scalar[byteIndex], acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        shr                             // [scalar[byteIndex] >> (7 - bitIndex), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        [ONE]                           // [1, scalar[byteIndex] >> (7 - bitIndex), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        and                             // [1 & (scalar[byteIndex] >> (7 - bitIndex)), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        [ONE]                           // [1, 1 & (scalar[byteIndex] >> (7 - bitIndex)), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        eq                              // [1 == 1 & (scalar[byteIndex] >> (7 - bitIndex)), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        iszero                          // [iszero(1 == 1 & (scalar[byteIndex] >> (7 - bitIndex))), acc.x, acc.y, byteIndex p.x, p.y, scalar]
+        finish5                         // [jump_dest, iszero(1 == 1 & (scalar[byteIndex] >> (7 - bitIndex))), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        jumpi                           // [acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+
+        dup5                            // [p.y, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        dup5                            // [p.x, p.y, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        ADD(<mem_ptr>, <ZERO>)          // [p.x, p.y, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+
+        finish5:
+
+        DOUBLE(<mem_ptr>, <ZERO>)       // [acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+
+        dup6                            // [scalar, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        dup4                            // [byteIndex, scalar, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        byte                            // [scalar[byteIndex], acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        [SIX]                           // [bitIndex = 6, scalar[byteIndex], acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        [SEVEN]                         // [7, bitIndex, scalar[byteIndex], acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        sub                             // [7 - bitIndex, scalar[byteIndex], acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        shr                             // [scalar[byteIndex] >> (7 - bitIndex), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        [ONE]                           // [1, scalar[byteIndex] >> (7 - bitIndex), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        and                             // [1 & (scalar[byteIndex] >> (7 - bitIndex)), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        [ONE]                           // [1, 1 & (scalar[byteIndex] >> (7 - bitIndex)), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        eq                              // [1 == 1 & (scalar[byteIndex] >> (7 - bitIndex)), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        iszero                          // [iszero(1 == 1 & (scalar[byteIndex] >> (7 - bitIndex))), acc.x, acc.y, byteIndex p.x, p.y, scalar]
+        finish6                         // [jump_dest, iszero(1 == 1 & (scalar[byteIndex] >> (7 - bitIndex))), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        jumpi                           // [acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+
+        dup5                            // [p.y, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        dup5                            // [p.x, p.y, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        ADD(<mem_ptr>, <ZERO>)          // [p.x, p.y, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+
+        finish6:
+
+        DOUBLE(<mem_ptr>, <ZERO>)       // [acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        dup6                            // [scalar, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        dup4                            // [byteIndex, scalar, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        byte                            // [scalar[byteIndex], acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        [SEVEN]                         // [bitIndex = 7, scalar[byteIndex], acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        [SEVEN]                         // [7, bitIndex, scalar[byteIndex], acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        sub                             // [7 - bitIndex, scalar[byteIndex], acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        shr                             // [scalar[byteIndex] >> (7 - bitIndex), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        [ONE]                           // [1, scalar[byteIndex] >> (7 - bitIndex), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        and                             // [1 & (scalar[byteIndex] >> (7 - bitIndex)), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        [ONE]                           // [1, 1 & (scalar[byteIndex] >> (7 - bitIndex)), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        eq                              // [1 == 1 & (scalar[byteIndex] >> (7 - bitIndex)), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        iszero                          // [iszero(1 == 1 & (scalar[byteIndex] >> (7 - bitIndex))), acc.x, acc.y, byteIndex p.x, p.y, scalar]
+        finish7                         // [jump_dest, iszero(1 == 1 & (scalar[byteIndex] >> (7 - bitIndex))), acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        jumpi                           // [acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+
+        dup5                            // [p.y, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        dup5                            // [p.x, p.y, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+        ADD(<mem_ptr>, <ZERO>)          // [acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+
+        finish7:
+
+    dup3                                // [byteIndex, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+    [ONE]                               // [1, byteIndex, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+    add                                 // [byteIndex = 1 + byteIndex, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+    swap3                               // [byteIndex, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+    pop                                 // [acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+    [THIRTY_TWO]                        // [32, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+    dup4                                // [byteIndex, 32, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+    lt                                  // [byteIndex < 32, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+    loop                                // [jump_dest, byteIndex < 32, acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+    jumpi                               // [acc.x, acc.y, byteIndex, p.x, p.y, scalar]
+
+    swap4                               // [p.y, acc.y, byteIndex, p.x, acc.x, scalar]
+    pop                                 // [acc.y, byteIndex, p.x, acc.x, scalar]
+    swap4                               // [scalar, byteIndex, p.x, acc.x, acc.y]
+    pop pop pop                         // [acc.x, acc.y]
+}
+
+#define macro MULTI_SCALAR_MUL(mem_ptr, ZERO) = takes (2) returns (2) {
+                                        // [mem_ptr_1, mem_ptr_2]
+    dup2                                // [mem_ptr_2, mem_ptr_1, mem_ptr_2]
+    mload                               // [scalars_len = mload(mem_ptr_2), mem_ptr_1, mem_ptr_2]
+    dup2                                // [mem_ptr_1, scalars_len, mem_ptr_1, mem_ptr_2]
+    mload                               // [bases_len = mload(mem_ptr_1), scalars_len, mem_ptr_1, mem_ptr_2]
+    dup2                                // [scalars_len, bases_len, scalars_len, mem_ptr_1, mem_ptr_2]
+    eq                                  // [scalars_len == bases_len, scalars_len, mem_ptr_1, mem_ptr_2]
+    continue                            // [jump_dest, scalars_len == bases_len, scalars_len, mem_ptr_1, mem_ptr_2]
+    jumpi                               // [scalars_len, mem_ptr_1, mem_ptr_2]
+
+    <ZERO>
+    <ZERO>
+    revert
+
+    continue:
+                                        // [scalars_len, mem_ptr_1, mem_ptr_2]
+        dup3                            // [mem_ptr_2, scalars_len, mem_ptr_1, mem_ptr_2]
+        0x20                            // [32, mem_ptr_2, scalars_len, mem_ptr_1, mem_ptr_2]
+        add                             // [ext_mem_ptr_2 = 32 + mem_ptr_2, scalars_len, mem_ptr_1, mem_ptr_2]
+        swap3                           // [mem_ptr_2, scalars_len, mem_ptr_1, ext_mem_ptr_2]
+        pop                             // [scalars_len, mem_ptr_1, ext_mem_ptr_2]
+
+        dup2                            // [mem_ptr_1, scalars_len, mem_ptr_1, ext_mem_ptr_2]
+        0x20                            // [32, mem_ptr_1, scalars_len, mem_ptr_1, ext_mem_ptr_2]
+        add                             // [ext_mem_ptr_1 = 32 + mem_ptr_1, scalars_len, mem_ptr_1, ext_mem_ptr_2]
+        swap2                           // [mem_ptr_1, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        pop                             // [scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+
+        [ONE]                           // [i=1, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        dup4
+        mload
+        dup4
+        0x20
+        add
+        mload
+        dup5
+        mload
+        SCALAR_MUL(<mem_ptr>, <ZERO>)
+
+    loop:
+                                        // [r.x, r.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        dup3                            // [i, r.x, r.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        0x20                            // [32, i, r.x, r.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        mul                             // [32 * i, r.x, r.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        dup7                            // [ext_mem_ptr_2, 32 * i, r.x, r.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        dup2                            // [32 * i, ext_mem_ptr_2, 32 * i, r.x, r.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        add                             // [(32 * i) + ext_mem_ptr_2, 32 * i, r.x, r.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        mload                           // [s = mload((32 * i) + ext_mem_ptr_2), 32 * i, r.x, r.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        swap1                           // [32 * i, s, r.x, r.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        0x02                            // [2, 32 * i, s, r.x, r.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        mul                             // [2 * 32 * i, s, r.x, r.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        dup7                            // [ext_mem_ptr_1, 2 * 32 * i, s, r.x, r.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        add                             // [ext_mem_ptr_1 + (2 * 32 * i), s, r.x, r.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        dup1                            // [ext_mem_ptr_1 + (2 * 32 * i), ext_mem_ptr_1 + (2 * 32 * i), s, r.x, r.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        0x20                            // [0x20, ext_mem_ptr_1 + (2 * 32 * i), ext_mem_ptr_1 + (2 * 32 * i), s, r.x, r.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        add                             // [0x20 + ext_mem_ptr_1 + (2 * 32 * i), ext_mem_ptr_1 + (2 * 32 * i), s, r.x, r.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        mload                           // [b.y = mload(0x20 + ext_mem_ptr_1 + (2 * 32 * i)), ext_mem_ptr_1 + (2 * 32 * i), s, r.x, r.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        swap1                           // [ext_mem_ptr_1 + (2 * 32 * i), b.y, s, r.x, r.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        mload                           // [b.x = mload(ext_mem_ptr_1 + (2 * 32 * i)), b.y, s, r.x, r.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        SCALAR_MUL(<ZERO>)              // [r0.x, r0.y, r.x, r.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        ADD(<mem_ptr>, <ZERO>)          // [r1.x, r1.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        dup3                            // [i, r1.x, r1.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        [ONE]                           // [1, i, r1.x, r1.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        add                             // [i = 1 + i, r1.x, r1.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        swap3                           // [i, r1.x, r1.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        pop                             // [r1.x, r1.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        dup4                            // [scalars_len, r1.x, r1.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        dup4                            // [i, scalars_len, r1.x, r1.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        lt                              // [i < scalars_len, r1.x, r1.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        loop                            // [jump_dest, i < scalars_len, r1.x, r1.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        jumpi                           // [r1.x, r1.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+
+        swap4 pop                       // [r1.y, i, scalars_len, r1.x, ext_mem_ptr_2]
+        swap4 pop                       // [i, scalars_len, r1.x, r1.y]
+        pop pop                         // [r1.x, r1.y]
+}
+
+/// @dev This function converts the compressed Grumpkin point back into the full point representation.
+/// @param compressed The compressed representation of the point.
+/// @return The decompressed point on the Grumpkin curve.
+#define macro DECOMPRESS(mem_ptr, ZERO) = takes (1) returns (2) {
+                                        // [compressed]
+    dup1                                // [compressed, compressed]
+    <ZERO>                              // [0, compressed, compressed]
+    byte                                // [compressed[0], compressed]
+    dup1                                // [compressed[0], compressed[0], compressed]
+    [SIX]                               // [6, compressed[0], compressed[0], compressed]
+    shr                                 // [y_sign = compressed[0] >> 6, compressed[0], compressed]
+    swap1                               // [compressed[0], y_sign, compressed]
+    [SEVEN]                             // [7, compressed[0], y_sign, compressed]
+    shr                                 // [is_inf = compressed[0] >> 7, y_sign, compressed]
+    0x3FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF  // [0x3FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF, is_inf, y_sign, compressed]
+    dup4                                // [compressed, 0x3FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF, is_inf, y_sign, compressed]
+    and                                 // [x = compressed & 0x3FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF, is_inf, y_sign, compressed]
+    swap1                               // [is_inf, x, y_sign, compressed]
+    iszero                              // [0 == is_inf, x, y_sign, compressed]
+    dup2                                // [x, 0 == is_inf, x, y_sign, compressed]
+    iszero                              // [0 == x, 0 == is_inf, x, y_sign, compressed]
+    and                                 // [(0 == x) & (0 == is_inf), x, y_sign, compressed]
+    iszero                              // [iszero((0 == x) & (0 == is_inf)), x, y_sign, compressed]
+    continue                            // [jump_dest, iszero((0 == x) & (0 == is_inf)), x, y_sign, compressed]
+    jumpi                               // [x, y_sign, compressed]
+
+    pop pop pop                         // []
+    <ZERO>
+    <ZERO>
+
+    finish1
+    jump
+
+    continue:
+                                        // [x, y_sign, compressed]
+        swap2                           // [compressed, y_sign, x]
+        pop                             // [y_sign, x]
+        [ONE]                           // [1, y_sign, x]
+        and                             // [y_sign = 1 & y_sign, x]
+        [R_MOD]                         // [P_MOD, y_sign, x]
+        dup3                            // [x, P_MOD, y_sign, x]
+        dup1                            // [x, x, P_MOD, y_sign, x]
+        mulmod                          // [y = x * x % P_MOD, y_sign, x]
+        dup3                            // [x, y, y_sign, x]
+        [R_MOD]                         // [P_MOD, x, y, y_sign, x]
+        swap2                           // [y, x, P_MOD, y_sign, x]
+        mulmod                          // [y = y * x % P_MOD, y_sign, x]
+        [G_B]                           // [G_B, y, y_sign, x]
+        [R_MOD]                         // [P_MOD, G_B, y, y_sign, x]
+        swap2                           // [y, G_B, P_MOD, y_sign, x]
+        addmod                          // [y = y + G_B % P_MOD, y_sign, x]
+        [R_MOD]                         // [P_MOD, y, y_sign, x]
+        swap1                           // [y, P_MOD, y_sign, x]
+        SQRT(<mem_ptr>, <ZERO>)         // [y = SQRT(y, P_MOD), y_sign, x]
+        dup1                            // [y, y, y_sign, x]
+        0xff                            // [255, y, y, y_sign, x]
+        and                             // [and(255, y), y, y_sign, x]
+        [ONE]                           // [1, and(255, y), y, y_sign, x]
+        and                             // [sign = and(1, and(255, y)), y, y_sign, x]
+        dup3                            // [y_sign, sign, y, y_sign, x]
+        xor                             // [y_sign ^ sign, y, y_sign, x]
+        [ONE]                           // [1, y_sign ^ sign, y, y_sign, x]
+        eq                              // [1 == (y_sign ^ sign), y, y_sign, x]
+        iszero                          // [iszero(1 == (y_sign ^ sign)), y, y_sign, x]
+        finish0                         // [jump_dest, iszero(1 == (y_sign ^ sign)), y, y_sign, x]
+        jumpi                           // [y, y_sign, x]
+
+        NEGATE_BASE()                   // [y = NEGATE_BASE(y), y_sign, x]
+
+        finish0:
+            swap2                       // [x, y_sign, y]
+            swap1                       // [y_sign, x, y]
+            pop                         // [x, y]
+
+        finish1:
+}
+
+#define macro GET_AT(ZERO) = takes (3) returns (1) {
+                                        // [segment, c, scalar]
+    dup2                                // [c, segment, c, scalar]
+    mul                                 // [skipBits = c * segment, c, scalar]
+    dup1                                // [skipBits, skipBits, c, scalar]
+    0xff                                // [255, skipBits, skipBits, c, scalar]
+    lt                                  // [255 < skipBits, skipBits, c, scalar]
+    continue                            // [jumpdest, 255 < skipBits, skipBits, c, scalar]
+    jumpi                               // [skipBits, c, scalar]
+
+    pop pop pop
+    <ZERO>
+    finish
+    jump
+
+    continue:
+                                        // [skipBits, c, scalar]
+        dup2                            // [c, skipBits, c, scalar]
+        [ONE]                           // [1, c, skipBits, c, scalar]
+        shl                             // [c << 1, skipBits, c, scalar]
+        swap3                           // [scalar, skipBits, c, 1 << c]
+        swap1                           // [skipBits, scalar, c, 1 << c]
+        shr                             // [scalar >> skipBits, c, 1 << c]
+        swap1                           // [c, scalar >> skipBits, 1 << c]
+        pop                             // [scalar >> skipBits, 1 << c]
+        mod                             // [(scalar >> skipBits) % (1 << c)]
+
+    finish:
+}
+
+#define macro MULTI_SCALAR_MUL_SERIAL() = takes (2) returns (2) {
+     // [mem_ptr_1, mem_ptr_2]
+}
+

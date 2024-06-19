@@ -1,0 +1,311 @@
+// #include "../../../../lib/Huff-Console/src/Console.huff"
+#define macro AFFINE_GENERATOR_WRAPPER() = {
+    AFFINE_GENERATOR()
+    0x00 mstore
+    0x20 mstore
+    0x40 0x00 return
+}
+
+#define macro PROJECTIVE_GENERATOR_WRAPPER() = {
+    PROJECTIVE_GENERATOR()
+    0x00 mstore
+    0x20 mstore
+    0x40 mstore
+    0x60 0x00 return
+}
+
+#define macro AFFINE_INFINITY_WRAPPER() = {
+    AFFINE_INFINITY(0x0)
+    0x00 mstore
+    0x20 mstore
+    0x40 0x00 return
+}
+
+#define macro PROJ_INFINITY_WRAPPER() = {
+    PROJ_INFINITY(0x0)
+    0x00 mstore
+    0x20 mstore
+    0x40 mstore
+    0x60 0x00 return
+}
+
+#define macro INTO_PROJECTIVE_WRAPPER() = {
+    0x24 calldataload
+    0x04 calldataload
+    INTO_PROJECTIVE(0x0)
+    0x00 mstore
+    0x20 mstore
+    0x40 mstore
+    0x60 0x00 return
+}
+
+#define macro INTO_AFFINE_WRAPPER() = {
+    0x44 calldataload
+    0x24 calldataload
+    0x04 calldataload
+    INTO_AFFINE(0x0,0x0)
+    0x00 mstore
+    0x20 mstore
+    0x40 0x00 return
+}
+
+#define macro IS_INFINITY_AFFINE_WRAPPER() = {
+    0x24 calldataload
+    0x04 calldataload
+    IS_INFINITY_AFFINE()
+    0x00 mstore
+    0x20 0x00 return
+}
+
+#define macro IS_INFINITY_PROJ_WRAPPER() = {
+    0x44 calldataload
+    0x24 calldataload
+    0x04 calldataload
+    IS_INFINITY_PROJ()
+    0x00 mstore
+    0x20 0x00 return
+}
+
+#define macro NEGATE_AFFINE_WRAPPER() = {
+    0x24 calldataload
+    0x04 calldataload
+    NEGATE_AFFINE()
+    0x00 mstore
+    0x20 mstore
+    0x40 0x00 return
+}
+
+#define macro NEGATE_PROJECTIVE_WRAPPER() = {
+    0x44 calldataload
+    0x24 calldataload
+    0x04 calldataload
+    NEGATE_PROJECTIVE()
+    0x00 mstore
+    0x20 mstore
+    0x40 mstore
+    0x60 0x00 return
+}
+
+#define macro NEGATE_BASE_WRAPPER() = {
+    0x04 calldataload
+    NEGATE_BASE()
+    0x00 mstore
+    0x20 0x00 return
+}
+
+#define macro NEGATE_SCALAR_WRAPPER() = {
+    0x04 calldataload
+    NEGATE_SCALAR()
+    0x00 mstore
+    0x20 0x00 return
+}
+
+#define macro DOUBLE_PROJECTIVE_WRAPPER() = {
+    0x44 calldataload
+    0x24 calldataload
+    0x04 calldataload
+    DOUBLE_PROJECTIVE()
+    0x00 mstore
+    0x20 mstore
+    0x40 mstore
+    0x60 0x00 return
+}
+
+#define macro DOUBLE_AFF_WRAPPER() = {
+    0x24 calldataload
+    0x04 calldataload
+    DOUBLE_AFF(0x0, 0x0)
+    0x00 mstore
+    0x20 mstore
+    0x40 0x00 return
+}
+
+#define macro ADD_AFFINE_WRAPPER() = {
+    0x64 calldataload
+    0x44 calldataload
+    0x24 calldataload
+    0x04 calldataload
+    ADD_AFFINE(0x0, 0x0)
+    0x00 mstore
+    0x20 mstore
+    0x40 0x00 return
+}
+
+#define macro ADD_PROJECTIVE_WRAPPER() = {
+    0xA4 calldataload
+    0x84 calldataload
+    0x64 calldataload
+    0x44 calldataload
+    0x24 calldataload
+    0x04 calldataload
+    ADD_PROJECTIVE()
+    0x00 mstore
+    0x20 mstore
+    0x40 mstore
+    0x60 0x00 return
+}
+
+#define macro SCALAR_MUL_AFF_WRAPPER() = {
+    0x44 calldataload
+    0x24 calldataload
+    0x04 calldataload
+    SCALAR_MUL_AFF(0x0, 0x0)
+    0x00 mstore
+    0x20 mstore
+    0x40 0x00 return
+}
+
+#define macro SCALAR_MUL_PROJECTIVE_WRAPPER() = {
+    0x64 calldataload
+    0x44 calldataload
+    0x24 calldataload
+    0x04 calldataload
+    SCALAR_MUL_PROJECTIVE(0x0)
+    0x00 mstore
+    0x20 mstore
+    0x40 mstore
+    0x60 0x00 return
+}
+
+#define macro MULTI_SCALAR_MUL_AFF_WRAPPER() = {
+    calldatasize
+    0x00
+    0x100
+    calldatacopy
+    0x224
+    0x144
+    MULTI_SCALAR_MUL_AFF(0x0, 0x0)
+    0x00 mstore
+    0x20 mstore
+    0x40 0x00 return
+}
+
+#define macro VALIDATE_CURVE_POINT_AFFINE_WRAPPER() = {
+    0x24 calldataload
+    0x04 calldataload
+    VALIDATE_CURVE_POINT_AFFINE(0x0)
+}
+
+#define macro VALIDATE_SCALAR_FIELD_WRAPPER() = {
+    0x04 calldataload
+    VALIDATE_SCALAR_FIELD(0x0)
+}
+
+#define macro FROM_LE_BYTES_MOD_ORDER_WRAPPER() = {
+    calldatasize
+    0x00
+    0x0
+    calldatacopy
+    0x24
+    FROM_LE_BYTES_MOD_ORDER(0x0)
+    0x00 mstore
+    0x20 mstore
+    0x40 0x00 return
+}
+
+#define macro IS_Y_NEGATIVE_AFFINE_WRAPPER() = {
+    0x24 calldataload
+    0x04 calldataload
+    IS_Y_NEGATIVE_AFFINE()
+    0x00 mstore
+    0x20 0x00 return
+}
+
+#define macro FROM_BYTES_WRAPPER() = {
+    0x04 calldataload
+    FROM_BYTES(0x0, 0x0)
+    0x00 mstore
+    0x20 mstore
+    0x40 0x00 return
+}
+
+#define macro DECOMPRESS_WRAPPER() = {
+    0x04 calldataload
+    DECOMPRESS(0x0, 0x0)
+    0x00 mstore
+    0x20 mstore
+    0x40 0x00 return
+}
+
+#define macro MAIN() = takes (0) returns (0) {
+    0x00 calldataload 0xE0 shr
+
+    dup1 0xb62c580b eq AffineGenerator jumpi
+    dup1 0x734713b9 eq ProjectiveGenerator jumpi
+    dup1 0xc1c1ca18 eq AffineInfinity jumpi
+    dup1 0x84113811 eq ProjectiveInfinity jumpi
+    dup1 0x36d4b34f eq IntoProjective jumpi
+    dup1 0x1b1c3a25 eq IntoAffine jumpi
+    dup1 0x213455e5 eq isInfinityAff jumpi
+    dup1 0x4493180e eq isInfinityProj jumpi
+    dup1 0xfb6b9e9a eq negateAff jumpi
+    dup1 0x6cac7e3f eq negateProj jumpi
+    dup1 0x76ce8621 eq negateBase jumpi
+    dup1 0x94a88a36 eq negateScalar jumpi
+    dup1 0x5b8865f9 eq doubleProj jumpi
+    dup1 0xed0fc4f0 eq doubleAff jumpi
+    dup1 0x82d23b8a eq addAff jumpi
+    dup1 0xa2a36ae5 eq addProj jumpi
+    dup1 0x40a05867 eq scalarMulAff jumpi
+    dup1 0x6f9c36a0 eq scalarMulProj jumpi
+    dup1 0x9a631d04 eq multiScalarMul jumpi
+    dup1 0x11a02e26 eq validateCurvePoint jumpi
+    dup1 0x4f91e48e eq validateScalarField jumpi
+    dup1 0x4c7c53a4 eq fromLeBytesModOrder jumpi
+    dup1 0xcb9e8010 eq isYNegative jumpi
+    dup1 0x438d1179 eq fromBytes jumpi
+    dup1 0x13bc64ee eq decompress jumpi
+
+    0x00 0x00 revert
+
+    AffineGenerator:
+        AFFINE_GENERATOR_WRAPPER()
+    ProjectiveGenerator:
+        PROJECTIVE_GENERATOR_WRAPPER()
+    AffineInfinity:
+        AFFINE_INFINITY_WRAPPER()
+    ProjectiveInfinity:
+        PROJ_INFINITY_WRAPPER()
+    IntoProjective:
+        INTO_PROJECTIVE_WRAPPER()
+    IntoAffine:
+        INTO_AFFINE_WRAPPER()
+    isInfinityAff:
+        IS_INFINITY_AFFINE_WRAPPER()
+    isInfinityProj:
+        IS_INFINITY_PROJ_WRAPPER()
+    negateAff:
+        NEGATE_AFFINE_WRAPPER()
+    negateProj:
+        NEGATE_PROJECTIVE_WRAPPER()
+    negateBase:
+        NEGATE_BASE_WRAPPER()
+    negateScalar:
+        NEGATE_SCALAR_WRAPPER()
+    doubleProj:
+        DOUBLE_PROJECTIVE_WRAPPER()
+    doubleAff:
+        DOUBLE_AFF_WRAPPER()
+    addAff:
+        ADD_AFFINE_WRAPPER()
+    addProj:
+        ADD_PROJECTIVE_WRAPPER()
+    scalarMulAff:
+        SCALAR_MUL_AFF_WRAPPER()
+    scalarMulProj:
+        SCALAR_MUL_PROJECTIVE_WRAPPER()
+    multiScalarMul:
+        MULTI_SCALAR_MUL_AFF_WRAPPER()
+    validateCurvePoint:
+        VALIDATE_CURVE_POINT_AFFINE_WRAPPER()
+    validateScalarField:
+        VALIDATE_SCALAR_FIELD_WRAPPER()
+    isYNegative:
+        IS_Y_NEGATIVE_AFFINE_WRAPPER()
+    fromBytes:
+        FROM_BYTES_WRAPPER()
+    fromLeBytesModOrder:
+        FROM_LE_BYTES_MOD_ORDER_WRAPPER()
+    decompress:
+        DECOMPRESS_WRAPPER()
+}

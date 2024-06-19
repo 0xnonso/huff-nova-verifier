@@ -1,0 +1,267 @@
+#include "../Constants.huff"
+
+#define macro POW_MOD(mem_ptr, ZERO) = takes (3) returns (1) {
+                                        // [base, exponent, modulus]
+    0x20                                // [32, base, exponent, modulus]
+    <mem_ptr>                           // [mem_ptr, 32, base, exponent, modulus]
+    mstore                              // [base, exponent, modulus]
+    0x20                                // [32, base, exponent, modulus]
+    <mem_ptr>                           // [mem_ptr, 32, base, exponent, modulus]
+    0x20                                // [32, mem_ptr, 32, base, exponent, modulus]
+    add                                 // [32 + mem_ptr, 32, base, exponent, modulus]
+    mstore                              // [base, exponent, modulus]
+    0x20                                // [32, base, exponent, modulus]
+    <mem_ptr>                           // [mem_ptr, 32, base, exponent, modulus]
+    0x40                                // [64, mem_ptr, 32, base, exponent, modulus]
+    add                                 // [64 + mem_ptr, 32, base, exponent, modulus]
+    mstore                              // [base, exponent, modulus]
+    <mem_ptr>                           // [mem_ptr, base, exponent, modulus]
+    0x60                                // [96, mem_ptr, base, exponent, modulus]
+    add                                 // [96 + mem_ptr, base, exponent, modulus]
+    mstore                              // [exponent, modulus]
+    <mem_ptr>                           // [mem_ptr, exponent, modulus]
+    0x80                                // [128, mem_ptr, exponent, modulus]
+    add                                 // [128 + mem_ptr, exponent, modulus]
+    mstore                              // [modulus]
+    <mem_ptr>                           // [mem_ptr, modulus]
+    0xa0                                // [160, mem_ptr, modulus]
+    add                                 // [160 + mem_ptr, modulus]
+    mstore                              // []
+    
+    0x20                                // [32]
+    <ZERO>                              // [0, 32]
+    0xc0                                // [192, 0, 32]
+    <mem_ptr>                           // [mem_ptr, 192, 0, 32]
+    0x05                                // [0x05, mem_ptr, 192, 0, 32]
+    [NOT_ZERO]                          // [not(0), 0x05, mem_ptr, 192, 0, 32]
+    staticcall                          // [success]
+
+    finish
+    jumpi
+
+    <ZERO>
+    <ZERO>
+    revert
+
+    finish:
+        <ZERO>
+        mload
+}
+
+#define macro IS_SQUARE(mem_ptr, ZERO) = takes (2) returns (1) {
+                                        // [base, modulus]
+    [TWO]                               // [2, base, modulus]
+    [ONE]                               // [1, 2, base, modulus]
+    dup4                                // [modulus, 1, 2, base, modulus]
+    sub                                 // [modulus - 1, 2, base, modulus]
+    div                                 // [exponent = (modulus - 1) / 2, base, modulus]
+    swap1                               // [base, exponent, modulus]
+    POW_MOD(<mem_ptr>, <ZERO>)              // [exp_result]
+    [ONE]                               // [1, exp_result]
+    swap1                               // [exp_result, 1]
+    sub                                 // [exp_result - 1]
+    iszero                              // [(exp_result - 1) == 0]
+}
+
+#define macro REQUIRE(ZERO) = takes (1) returns (0) {
+                                        // [condition]
+    finish
+    jumpi
+    <ZERO>
+    <ZERO>
+    revert
+    finish:
+}
+
+/// Implementation of the Tonelli-Shanks square root algorithm
+///     NOTE: It is assumed that _mod is a prime for this algorithm to work, and when _mod is congruent to 3 mod 4
+///     a direct calculation is used instead.
+/// @notice Computes the square root of a field element.
+/// @dev Implements the Tonelli-Shanks square root algorithm. It is assumed that _mod is a prime for this algorithm
+///       to work, and when _mod is congruent to 3 mod 4 a direct calculation is used instead.
+/// @param x, The field element.
+/// @param mod, The modulus, assumed to be prime.
+/// @return The square root of x in the field.
+#define macro SQRT(mem_ptr, ZERO) = takes (2) returns (1) {
+                                        // [x, mod]
+    dup2                                // [mod, x, mod]
+    dup2                                // [x, mod, x, mod]
+    IS_SQUARE(<mem_ptr>, <ZERO>)        // [is_square, x, mod]
+    REQUIRE(<ZERO>)                     // [x, mod]
+    [THREE]                             // [3, x, mod]
+    [FOUR]                              // [4, 3, x, mod]
+    dup4                                // [mod, 4, 3, x, mod]
+    mod                                 // [mod % 4, 3, x, mod]
+    sub                                 // [(mod % 4) - 3, x, mod]
+    iszero                              // [((mod % 4) - 3) == 0, x, mod]
+    iszero                              // [(((mod % 4) - 3) == 0) == 0, x, mod]
+    continue1                           // [jump_dest, (((mod % 4) - 3) == 0) == 0, x, mod]
+    jumpi                               // [x, mod]
+
+    [FOUR]                              // [4, x, mod]
+    [ONE]                               // [1, 4, x, mod]
+    dup4                                // [mod, 1, 4, x, mod]
+    add                                 // [mod + 1, 4, x, mod]
+    div                                 // [exponent = (mod + 1) / 4, x, mod]
+    swap1                               // [x, exponent, mod]
+    POW_MOD(<mem_ptr>, <ZERO>)          // [answer]
+
+    finish
+    jump
+
+    continue1:
+                                        // [x, mod]
+        [ONE]                           // [1, x, mod]
+        dup3                            // [mod, 1, x, mod]
+        sub                             // [s = mod - 1, x, mod]
+        <ZERO>                          // [e = 0, s, x, mod]
+        [TWO]                           // [2, e, s, x, mod]
+        dup3                            // [s, 2, e, s, x, mod]
+        mod                             // [s % 2, e, s, x, mod]
+        iszero                          // [(s % 2) == 0, e, s, x, mod]
+        iszero                          // [((s % 2) == 0) == 0, e, s, x, mod]
+        continue2                       // [jump_dest, ((s % 2) == 0) == 0, e, s, x, mod]
+        jumpi                           // [e, s, x, mod]
+
+    loop1:
+                                        // [e, s, x, mod]
+        [ONE]                           // [1, e, s, x, mod]
+        add                             // [e = 1 + e, s, x, mod]
+        [TWO]                           // [2, e, s, x, mod]
+        dup3                            // [s, 2, e, s, x, mod]
+        div                             // [s = s/2, e, s, x, mod]
+        swap2                           // [s, e, s, x, mod]
+        pop                             // [e, s, x, mod]
+        [TWO]                           // [2, e, s, x, mod]
+        dup3                            // [s, 2, e, s, x, mod]
+        mod                             // [s % 2, e, s, x, mod]
+        iszero                          // [(s % 2) == 0, e, s, x, mod]
+        loop1                           // [jump_dest, (s % 2) == 0, e, s, x, mod]
+        jumpi                           // [e, s, x, mod]
+
+    continue2:
+                                        // [e, s, x, mod]
+        [TWO]                           // [n = 2, e, s, x, mod]
+        dup5                            // [mod, n, e, s, x, mod]
+        dup2                            // [n, mod, n, e, s, x, mod]
+        IS_SQUARE(<mem_ptr>, <ZERO>)    // [is_square, n, e, s, x, mod]
+        iszero                          // [iszero(is_square), n, e, s, x, mod]
+        continue3                       // [jump_dest, iszero(is_square), n, e, s, x, mod]
+        jumpi                           // [n, e, s, x, mod]
+
+    loop2:
+                                        // [n, e, s, x, mod]
+        [ONE]                           // [1, n, e, s, x, mod]
+        add                             // [n = 1 + n, e, s, x, mod]
+        dup5                            // [mod, n, e, s, x, mod]
+        dup2                            // [n, mod, n, e, s, x, mod]
+        IS_SQUARE(<mem_ptr>, <ZERO>)    // [is_square, n, e, s, x, mod]
+        loop2                           // [jump_dest, is_square, n, e, s, x, mod]
+        jumpi                           // [n, e, s, x, mod]
+
+    continue3:
+                                        // [n, e, s, x, mod]
+        dup3                            // [s, n, e, s, x, mod]
+        dup6                            // [mod, s, n, e, s, x, mod]
+        swap2                           // [n, s, mod, e, s, x, mod]
+        POW_MOD(<mem_ptr>, <ZERO>)      // [g, e, s, x, mod]
+        dup5                            // [mod, g, e, s, x, mod]
+        dup4                            // [s, mod, g, e, s, x, mod]
+        dup2                            // [mod, s, mod, g, e, s, x, mod]
+        [TWO]                           // [2, mod, s, mod, g, e, s, x, mod]
+        [ONE]                           // [1, 2, mod, s, mod, g, e, s, x, mod]
+        dup4                            // [s, 1, 2, mod, s, mod, g, e, s, x, mod]
+        add                             // [s + 1, 2, mod, s, mod, g, e, s, x, mod]
+        div                             // [(s + 1)/2, mod, s, mod, g, e, s, x, mod]
+        dup8                            // [x, (s + 1)/2, mod, s, mod, g, e, s, x, mod]
+        POW_MOD(<mem_ptr>, <ZERO>)      // [_x, s, mod, g, e, s, x, mod]
+        swap6                           // [x, s, mod, g, e, s, _x, mod]
+        POW_MOD(<mem_ptr>, <ZERO>)      // [b, g, e, s, _x, mod]
+        swap3                           // [s, g, e, b, _x, mod]
+        pop                             // [g, r = e, b, _x, mod]
+    
+    loop3:
+                                        // [g, r, b, _x, mod]
+        <ZERO>                          // [m = 0, g, r, b, _x, mod]
+        dup4                            // [t = b, m, g, r, b, _x, mod]
+        dup4                            // [r, t, m, g, r, b, _x, mod]
+        dup3                            // [m, r, t, m, g, r, b, _x, mod]
+        lt                              // [m < r, t, m, g, r, b, _x, mod]
+        iszero                          // [(m < r) == 0, t, m, g, r, b, _x, mod]
+        next1                           // [jump_dest, (m < r) == 0, t, m, g, r, b, _x, mod]
+        jumpi                           // [t, m, g, r, b, _x, mod]
+
+        inner_loop:
+                                        // [t, m, g, r, b, _x, mod]
+            [ONE]                       // [1, t, m, g, r, b, _x, mod]
+            dup2                        // [t, 1, t, m, g, r, b, _x, mod]
+            eq                          // [t == 1, t, m, g, r, b, _x, mod]
+            next1                       // [jump_dest, t == 1, t, m, g, r, b, _x, mod]
+            jumpi                       // [t, m, g, r, b, _x, mod]
+            dup1                        // [t, t, m, g, r, b, _x, mod]
+            dup8                        // [mod, t, t, m, g, r, b, _x, mod]
+            swap2                       // [t, t, mod, m, g, r, b, _x, mod]
+            mulmod                      // [t = t * t % mod, m, g, r, b, _x, mod]
+            dup2                        // [m, t, m, g, r, b, _x, mod]
+            [ONE]                       // [1, m, t, m, g, r, b, _x, mod]
+            add                         // [m = 1 + m, t, m, g, r, b, _x, mod]
+            swap2                       // [m, t, m, g, r, b, _x, mod]
+            pop                         // [t, m, g, r, b, _x, mod]
+            dup4                        // [r, t, m, g, r, b, _x, mod]
+            dup3                        // [m, r, t, m, g, r, b, _x, mod]
+            lt                          // [m < r, t, m, g, r, b, _x, mod]
+            inner_loop                  // [jump_dest, m < r, t, m, g, r, b, _x, mod]
+            jumpi                       // [t, m, g, r, b, _x, mod]
+
+        next1:
+                                        // [t, m, g, r, b, _x, mod]
+            dup2                        // [m, t, m, g, r, b, _x, mod]
+            iszero                      // [iszero(m), t, m, g, r, b, _x, mod]
+            iszero                      // [iszero(m) == 0, t, m, g, r, b, _x, mod]
+            next2                       // [jump_dest, iszero(m) == 0, t, m, g, r, b, _x, mod]
+            jumpi                       // [t, m, g, r, b, _x, mod]
+            pop pop pop                 // [r, b, _x, mod]
+            pop pop                     // [_x, mod]
+            swap1 pop                   // [_x]
+            finish                      // [jump_dest, _x]
+            jump                        // [_x]
+
+        next2:
+                                        // [t, m, g, r, b, _x, mod]
+            dup7                        // [mod, t, m, g, r, b, _x, mod]
+            [ONE]                       // [1, mod, t, m, g, r, b, _x, mod]
+            dup4                        // [m, 1, mod, t, m, g, r, b, _x, mod]
+            add                         // [m + 1, mod, t, m, g, r, b, _x, mod]
+            dup6                        // [r, m + 1, mod, t, m, g, r, b, _x, mod]
+            sub                         // [r - (m + 1), mod, t, m, g, r, b, _x, mod]
+            [TWO]                       // [2, r - (m + 1), mod, t, m, g, r, b, _x, mod]
+            exp                         // [2 ^ (r - (m + 1)), mod, t, m, g, r, b, _x, mod]
+            dup5                        // [g, 2 ^ (r - (m + 1)), mod, t, m, g, r, b, _x, mod]
+            POW_MOD(<mem_ptr>, <ZERO>)  // [gs, t, m, g, r, b, _x, mod]
+            dup8                        // [mod, gs, t, m, g, r, b, _x, mod]
+            dup2                        // [gs, mod, gs, t, m, g, r, b, _x, mod]
+            dup9                        // [_x, gs, mod, gs, t, m, g, r, b, _x, mod]
+            mulmod                      // [_x, gs, t, m, g, r, b, _x, mod]
+            swap7                       // [_x, gs, t, m, g, r, b, _x, mod]
+            pop                         // [gs, t, m, g, r, b, _x, mod]
+            dup1                        // [gs, gs, t, m, g, r, b, _x, mod]
+            dup9                        // [mod, gs, gs, t, m, g, r, b, _x, mod]
+            swap2                       // [gs, gs, mod, t, m, g, r, b, _x, mod]
+            mulmod                      // [g, t, m, g, r, b, _x, mod]
+            swap3                       // [g, t, m, g, r, b, _x, mod]
+            pop                         // [t, m, g, r, b, _x, mod]
+            dup7                        // [mod, t, m, g, r, b, _x, mod]
+            dup4                        // [g, mod, t, m, g, r, b, _x, mod]
+            dup7                        // [b, g, mod, t, m, g, r, b, _x, mod]
+            mulmod                      // [b = b * g % mod, t, m, g, r, b, _x, mod]
+            swap5                       // [b, t, m, g, r, b, _x, mod]
+            pop                         // [t, m, g, r, b, _x, mod]
+            pop                         // [m, g, r, b, _x, mod]
+            swap2                       // [r, g, r = m, b, _x, mod]
+            pop                         // [g, r, b, _x, mod]
+
+            loop3
+            jump
+            
+    finish:
+}

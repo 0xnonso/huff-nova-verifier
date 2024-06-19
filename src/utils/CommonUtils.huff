@@ -1,0 +1,137 @@
+#include "../Constants.huff"
+
+#define table M_VALUES {
+    0xf8f9cbfae6cc78fbefe7cdc3a1793dfcf4f0e8bbd8cec470b6a28a7a5a3e1efdf5ecf1b3e9debc68e1d9cfabc5997135bfb7a7a3938b7b606b5b4b3f2f1f0ffef6e4ed9ff2d6b458eadcdf97bd91692de2d4da8fd2d0ac50c6ae9a8272523616c8c0b887b0a8a4489c948c7f847c6125746c645c544c444038302820181008fff7cae577eec2a03cf3bad76fb589591debb2dd67e0aa9834bea6925f6a4a2e0ee39ed557db96902cd38ed14fad815115c786af479b7e83247363534337271707c976c13bb96e881cb166a933a55e490d9d56952b8d4e801485467d2362422606753a6d1b65325d0c552a4d1345224105391a310b29122104190a110309020100
+}
+
+/// @notice Calculates the base-2 logarithm of a given number.
+/// @dev This function uses bitwise operations to efficiently compute the log2 of the input.
+/// @param x, The number to calculate the logarithm for.
+/// @return y, The base-2 logarithm of the input number.
+#define macro LOG2(mem_ptr) = takes (1) returns (1) {
+                                        // [x]
+    0x01                                // [1, arg = x]
+    dup2                                // [x, 1, arg]
+    sub                                 // [x = x - 1, arg]
+    0x02                                // [2, x, arg]
+    dup2                                // [x, 2, x, arg]
+    div                                 // [x/2, x, arg]
+    or                                  // [x = or(x/2, x), arg]
+    0x04                                // [4, x, arg]
+    dup2                                // [x, 4, x, arg]
+    div                                 // [x/4, x, arg]
+    or                                  // [x = or(x/4, x), arg]
+    0x10                                // [16, x, arg]
+    dup2                                // [x, 16, x, arg]
+    div                                 // [x/16, x, arg]
+    or                                  // [x = or(x/16, x), arg]
+    0x100                               // [256, x, arg]
+    dup2                                // [x, 256, x, arg]
+    div                                 // [x/256, x, arg]
+    or                                  // [x = or(x/256, x), arg]
+    0x10000                             // [65536, x, arg]
+    dup2                                // [x, 65536, x, arg]
+    div                                 // [x/65536, x, arg]
+    or                                  // [x = or(x/65536, x), arg]
+    0x100000000                         // [4294967296, x, arg]
+    dup2                                // [x, 4294967296, x, arg]
+    div                                 // [x/4294967296, x, arg]
+    or                                  // [x = or(x/4294967296, x), arg]
+    0x10000000000000000                 // [18446744073709551616, x, arg]
+    dup2                                // [x, 18446744073709551616, x, arg]
+    div                                 // [x/18446744073709551616, x, arg]
+    or                                  // [x = or(x/18446744073709551616, x), arg]
+    0x100000000000000000000000000000000 // [340282366920938463463374607431768211456, x, arg]
+    dup2                                // [x, 340282366920938463463374607431768211456, x, arg]
+    div                                 // [x/340282366920938463463374607431768211456, x, arg]
+    or                                  // [x = or(x/340282366920938463463374607431768211456, x), arg]
+    [ONE]                               // [1, x, arg]
+    add                                 // [x = 1 + x, arg]
+    0x100                               // [256, x, arg]
+    __tablestart(M_VALUES)              // [__tablestart(M_VALUES), 256, x, arg]
+    <mem_ptr>                           // [mem_ptr, __tablestart(M_VALUES), 256, x, arg]
+    codecopy                            // [codecopy(mem_ptr, __tablestart(M_VALUES)), 256, x, arg]
+    0x100000000000000000000000000000000000000000000000000000000000000   // [0x100000000000000000000000000000000000000000000000000000000000000, x, arg]
+    swap1                                                               // [x, 0x100000000000000000000000000000000000000000000000000000000000000, arg]
+    0x818283848586878898a8b8c8d8e8f929395969799a9b9d9e9faaeb6bedeeff    // [0x818283848586878898a8b8c8d8e8f929395969799a9b9d9e9faaeb6bedeeff, x, 0x100000000000000000000000000000000000000000000000000000000000000, arg]
+    mul                                                                 // [0x818283848586878898a8b8c8d8e8f929395969799a9b9d9e9faaeb6bedeeff * x, 0x100000000000000000000000000000000000000000000000000000000000000, arg]
+    div                                                                 // [a = (0x818283848586878898a8b8c8d8e8f929395969799a9b9d9e9faaeb6bedeeff * x)/0x100000000000000000000000000000000000000000000000000000000000000, arg]
+    0x100000000000000000000000000000000000000000000000000000000000000   // [0x100000000000000000000000000000000000000000000000000000000000000, a, arg]
+    swap1                                                               // [a, 0x100000000000000000000000000000000000000000000000000000000000000, arg]
+    0xff                                                                // [255, a, 0x100000000000000000000000000000000000000000000000000000000000000, arg]
+    sub                                                                 // [255 - a, 0x100000000000000000000000000000000000000000000000000000000000000, arg]
+    <mem_ptr>                                                           // [mem_ptr, 255 - a, 0x100000000000000000000000000000000000000000000000000000000000000, arg]
+    add                                                                 // [mem_ptr + (255 - a), 0x100000000000000000000000000000000000000000000000000000000000000, arg]
+    mload                                                               // [mload(mem_ptr + (256 - a)), 0x100000000000000000000000000000000000000000000000000000000000000, arg]
+    div                                                                 // [y = mload(mem_ptr + (256 - a))/0x100000000000000000000000000000000000000000000000000000000000000, arg]
+    swap1                                                               // [arg, y]
+    0x8000000000000000000000000000000000000000000000000000000000000000  // [0x8000000000000000000000000000000000000000000000000000000000000000, arg, y]
+    swap1                                                               // [arg, 0x8000000000000000000000000000000000000000000000000000000000000000, y]
+    gt                                                                  // [arg > 0x8000000000000000000000000000000000000000000000000000000000000000, y]
+    0xff                                                                // [256, arg > 0x8000000000000000000000000000000000000000000000000000000000000000, y]
+    mul                                                                 // [(256 * (arg > 0x8000000000000000000000000000000000000000000000000000000000000000)), y]
+    add                                                                 // [y = (256 * (arg > 0x8000000000000000000000000000000000000000000000000000000000000000)) + y]
+}
+
+/// @notice Generates an array of powers of a given base up to a specified length.
+/// @dev Computes s^0, s^1, ..., s^(len-1) modulo a given modulus.
+/// @param s, The base to raise to successive powers.
+/// @param len, The number of powers to compute.
+/// @param modulus, The modulus to use for the calculation.
+/// @return An array containing the computed powers of s.
+#define macro POWERS(res_mem_ptr) = takes (3) returns (1) {
+                                        // [s, len, modulus]
+    dup2                                // [len, s, len, modulus]
+    continue                            // [jump_dest, len, s, len, modulus]
+    jumpi                               // [s, len, modulus]
+
+    <ZERO>                              
+    <ZERO>
+    revert
+
+    continue:
+                                        // [s, len, modulus]
+        dup2                            // [len, s, len, modulus]
+        <res_mem_ptr>                   // [mem_ptr, len, s, len, modulus]
+        mstore                          // [s, len, modulus]
+        <res_mem_ptr>                   // [mem_ptr, s, len, modulus]
+        0x20                            // [32, mem_ptr, s, len, modulus]
+        add                             // [ext_mem_ptr = 32 + mem_ptr, s, len, modulus]
+        [ONE]                           // [1, ext_mem_ptr, s, len, modulus]
+        dup2                            // [ext_mem_ptr, 1, ext_mem_ptr, s, len, modulus]
+        mstore                          // [ext_mem_ptr, s, len, modulus]
+        [ONE]                           // [prev_index_val = 1, ext_mem_ptr, s, len, modulus]
+        [ONE]                           // [index = 1, prev_index_val, ext_mem_ptr, s, len, modulus]
+        dup5                            // [len, index, prev_index_val, ext_mem_ptr, s, len, modulus]
+        dup2                            // [index, len, index, prev_index_val, ext_mem_ptr, s, len, modulus]
+        eq                              // [index == len, index, prev_index_val, ext_mem_ptr, s, len, modulus]
+        finish
+        jumpi
+    
+    loop:
+                                        // [index, prev_index_val, ext_mem_ptr, s, len, modulus]
+        dup6                            // [modulus, index, prev_index_val, ext_mem_ptr, s, len, modulus]
+        dup5                            // [s, modulus, index, prev_index_val, ext_mem_ptr, s, len, modulus]
+        dup4                            // [prev_index_val, s, modulus, index, prev_index_val, ext_mem_ptr, s, len, modulus]
+        mulmod                          // [curr_index_val = prev_index_val * s % modulus, index, prev_index_val, ext_mem_ptr, s, len, modulus]
+        dup1                            // [curr_index_val, curr_index_val, index, prev_index_val, ext_mem_ptr, s, len, modulus]
+        dup3                            // [index, curr_index_val, curr_index_val, index, prev_index_val, ext_mem_ptr, s, len, modulus]
+        0x20                            // [32, index, curr_index_val, curr_index_val, index, prev_index_val, ext_mem_ptr, s, len, modulus]
+        mul                             // [32 * index, curr_index_val, curr_index_val, index, prev_index_val, ext_mem_ptr, s, len, modulus]
+        dup6                            // [ext_mem_ptr, 32 * index, curr_index_val, curr_index_val, index, prev_index_val, ext_mem_ptr, s, len, modulus]
+        add                             // [ext_mem_ptr + (32 * index), curr_index_val, curr_index_val, index, prev_index_val, ext_mem_ptr, s, len, modulus]
+        mstore                          // [curr_index_val, index, prev_index_val, ext_mem_ptr, s, len, modulus]
+        swap2                           // [prev_index_val, index, prev_index_val = curr_index_val, ext_mem_ptr, s, len, modulus]
+        pop                             // [index, prev_index_val, ext_mem_ptr, s, len, modulus]
+        [ONE]                           // [1, index, prev_index_val, ext_mem_ptr, s, len, modulus]
+        add                             // [index = 1 + index, prev_index_val, ext_mem_ptr, s, len, modulus]
+        dup5                            // [len, index, prev_index_val, ext_mem_ptr, s, len, modulus]
+        dup2                            // [index, len, index, prev_index_val, ext_mem_ptr, s, len, modulus]
+        lt                              // [index < len, index, prev_index_val, ext_mem_ptr, s, len, modulus]
+        loop                            // [jump_dest, index < len, index, prev_index_val, ext_mem_ptr, s, len, modulus]
+        jumpi                           // [index, prev_index_val, ext_mem_ptr, s, len, modulus]
+    finish:
+        pop pop pop
+        pop pop pop
+        <res_mem_ptr>
+}

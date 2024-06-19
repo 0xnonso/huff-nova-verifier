@@ -1,0 +1,286 @@
+/// SPDX-License-Identifier: MIT
+#include "../../Constants.huff"
+#include "../../utils/Sqrt.huff"
+
+
+/// @dev Performs elliptic curve addition according to the Bn256 curve rules.
+/// @param p1 First affine point for addition. It must be a valid point on the Bn256 curve.
+/// @param p2 Second affine point for addition. It must also be   a valid point on the Bn256 curve.
+/// @return Returns the result of adding two Bn256 affine points, which is also a point on the curve.
+#define macro ADD(mem_ptr, ZERO) = takes (4) returns (2) {
+                                        // [p1.x, p1.y, p2.x, p2.y]
+    <mem_ptr>                           // [mem_ptr, p1.x, p1.y, p2.x, p2.y]
+    mstore                              // [p1.y, p2.x, p2.y]
+    <mem_ptr>                           // [mem_ptr, p1.y, p2.x, p2.y]
+    0x20                                // [32, mem_ptr, p1.y, p2.x, p2.y]
+    add                                 // [32 + mem_ptr, p1.y, p2.x, p2.y]
+    mstore                              // [p2.x, p2.y]
+    <mem_ptr>                           // [mem_ptr, p2.x, p2.y]
+    0x40                                // [64, mem_ptr, p2.x, p2.y]
+    add                                 // [64 + mem_ptr, p2.x, p2.y]
+    mstore                              // [p2.y]
+    <mem_ptr>                           // [mem_ptr, p2.y]
+    0x60                                // [96, mem_ptr, p2.y]
+    add                                 // [96 + mem_ptr, p2.y]
+    mstore                              // []
+    0x40                                // [64]
+    <ZERO>                              // [result = 0, 64]
+    0x80                                // [128, result, 64]
+    <mem_ptr>                           // [mem_ptr, 128, result, 64]
+    <ZERO>                              // [0, mem_ptr, 128, result, 64]
+    0x06                                // [address(0x06), 0, mem_ptr, 128, result, 64]
+    gas                                 // [gas, address(0x06), 0, mem_ptr, 128, result, 64]
+    call                                // [success]
+
+    continue                            // [jump_dest, success]
+    jumpi                               // []
+
+    <ZERO>                              
+    <ZERO>
+    revert
+
+    continue:
+        [THIRTY_TWO]                    // [32]
+        mload                           // [out.y = mload(32)]
+        <ZERO>                          // [0, out.y]
+        mload                           // [out.x = mload(0), out.y]
+}
+
+/// @dev Performs scalar multiplication on the Bn256 curve.
+/// @param p The point on the Bn256 curve to be multiplied.
+/// @param s The scalar by which to multiply the point.
+/// @return The result of scalar multiplication, which is another point on the curve.
+#define macro SCALAR_MUL(mem_ptr, ZERO) = takes (3) returns (2) {
+                                        // [p.x, p.y, s]
+    <mem_ptr>                           // [mem_ptr, p.x, p.y, s]
+    mstore                              // [p.y, s]
+    <mem_ptr>                           // [mem_ptr, p.y, s]
+    0x20                                // [32, mem_ptr, p.y, s]
+    add                                 // [32 + mem_ptr, p.y, s]
+    mstore                              // [s]
+    <mem_ptr>                           // [mem_ptr, s]
+    0x40                                // [64, mem_ptr, s]
+    add                                 // [64 + mem_ptr, s]
+    mstore                              // []
+    0x40                                // [64]
+    <ZERO>                              // [result = 0, 64]
+    0x60                                // [96, result, 64]
+    <mem_ptr>                           // [mem_ptr, 96, result, 64]
+    <ZERO>                              // [0, mem_ptr, 96, result, 64]
+    0x07                                // [address(0x07), 0, mem_ptr, 96, result, 64]
+    gas                                 // [gas, address(0x07), 0, mem_ptr, 96, result, 64]
+    call                                // [success]
+
+    continue                            // [jump_dest, success]
+    jumpi                               // []
+
+    <ZERO>
+    <ZERO>
+    revert
+
+    continue:
+        [THIRTY_TWO]                    // [32]
+        mload                           // [out.y = mload(32)]
+        <ZERO>                          // [0, out.y]
+        mload                           // [out.x = mload(0), out.y]
+}
+
+/// @dev Performs multiple scalar multiplications on the Bn256 curve. Useful for batch processing, allowing multiple
+///      scalar multiplications to be performed in a single call.
+/// @param mem_ptr_1 Pointer to an array of points on the Bn256 curve to be multiplied.
+/// @param mem_ptr_2 Pointer to an array of scalars by which to multiply the corresponding points.
+/// @return r, An array of points, each being the result of the scalar multiplication of the corresponding point and scalar.
+#define macro MULTI_SCALAR_MUL(mem_ptr, ZERO) = takes (2) returns (2) {
+                                        // [mem_ptr_1, mem_ptr_2]
+    dup2                                // [mem_ptr_2, mem_ptr_1, mem_ptr_2]
+    mload                               // [len_2 =  mload(mem_ptr_2), mem_ptr_1, mem_ptr_2]
+    swap1                               // [mem_ptr_1, len_2, mem_ptr_2]
+    dup1                                // [mem_ptr_1, mem_ptr_1, len_2, mem_ptr_2]
+    mload                               // [len_1 = mload(mem_ptr_1), len_2, mem_ptr_2]
+    dup3                                // [len_2, len_1, mem_ptr_1, len_2, mem_ptr_2]
+    eq                                  // [len_2 == len_1, mem_ptr_1, len_2, mem_ptr_2]
+    continue                            // [jump_dest, len_2 == len_1, mem_ptr_1, len_2, mem_ptr_2]
+    jumpi                               // [mem_ptr_1, len_2, mem_ptr_2]
+
+    <ZERO>
+    <ZERO>
+    revert
+
+    continue:
+                                        // [mem_ptr_1, len_2, mem_ptr_2]
+        [ONE]                           // [i = 1, mem_ptr_1, len_2, mem_ptr_2]
+        dup4                            // [mem_ptr_2, i, mem_ptr_1, len_2, mem_ptr_2]
+        mload                           // [scalar = mload(mem_ptr_2), i, mem_ptr_1, len_2, mem_ptr_2]
+        dup3                            // [mem_ptr_1, scalar, i, mem_ptr_1, len_2, mem_ptr_2]
+        0x20                            // [32, mem_ptr_1, scalar, i, mem_ptr_1, len_2, mem_ptr_2]
+        add                             // [32 + mem_ptr_1, scalar, i, mem_ptr_1, len_2, mem_ptr_2]
+        mload                           // [base.y = mload(32 + mem_ptr_1), scalar, i, mem_ptr_1, len_2, mem_ptr_2]
+        dup4                            // [mem_ptr_1, base.y, scalar, i, mem_ptr_1, len_2, mem_ptr_2]
+        mload                           // [base.x = mload(mem_ptr_1), base.y, scalar, i, mem_ptr_1, len_2, mem_ptr_2]
+        SCALAR_MUL(<mem_ptr>)           // [r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        dup5                            // [len_2, r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        dup4                            // [i, len_2, r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        lt                              // [i < len_2, r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        iszero                          // [iszero(i < len_2), r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        finish                          // [jump_dest, iszero(i < len_2), r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        jumpi                           // [r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
+
+    loop:
+                                        // [r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        dup3                            // [i, r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        0x20                            // [32, i, r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        mul                             // [32 * i, r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        dup7                            // [mem_ptr_2, 32 * i, r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        add                             // [mem_ptr_2 + (32 * i), r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        mload                           // [scalar = mload(mem_ptr_2 + (32 * i)), r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        dup4                            // [i, scalar, r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        0x40                            // [64, i, scalar, r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        mul                             // [64 * i, scalar, r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        dup6                            // [mem_ptr_1, 64 * i, scalar, r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        add                             // [mem_ptr_1 + (64 * i), scalar, r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        dup1                            // [mem_ptr_1 + (64 * i), mem_ptr_1 + (64 * i), scalar, r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        0x20                            // [32, mem_ptr_1 + (64 * i), mem_ptr_1 + (64 * i), scalar, r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        add                             // [32 + mem_ptr_1 + (64 * i), mem_ptr_1 + (64 * i), scalar, r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        mload                           // [bases.y = 32 + mem_ptr_1 + (64 * i), mem_ptr_1 + (64 * i), scalar, r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        swap1                           // [mem_ptr_1 + (64 * i), bases.y, scalar, r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        mload                           // [bases.x = mload(mem_ptr_1 + (64 * i)), bases.y, scalar, r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        SCALAR_MUL(<mem_ptr>, <ZERO>)   // [r0.x, r0.y, r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        ADD(<mem_ptr>, <ZERO>)          // [r1.x, r1.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        dup5                            // [len_2, r1.x, r1.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        dup4                            // [i, len_2, r1.x, r1.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        lt                              // [i < len_2, r1.x, r1.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        loop                            // [jump_dest, i < len_2, r1.x, r1.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        jumpi                           // [r1.x, r1.y, i, mem_ptr_1, len_2, mem_ptr_2]
+
+    finish:
+                                        // [r1.x, r1.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        swap4                           // [len_2, r1.y, i, mem_ptr_1, r1.x, mem_ptr_2]
+        pop                             // [r1.y, i, mem_ptr_1, r1.x, mem_ptr_2]
+        swap4                           // [mem_ptr_2, i, mem_ptr_1, r1.x, r1.y]
+        pop pop pop                     // [r1.x, r1.y]
+}
+
+/// @dev Negates a point on the Bn256 curve. This operation inverts the point over the x-axis on the elliptic curve.
+/// @param p, The point on the Bn256 curve to be negated.
+/// @return The negated point, also on the Bn256 curve.
+#define macro NEGATE() = takes (2) returns (2) {
+                                        // [p.x, p.y]
+    [P_MOD]                             // [P_MOD, p.x, p.y]
+    dup3                                // [p.y, P_MOD, p.x, p.y]
+    mod                                 // [p.y % P_MOD, p.x, p.y]
+    [P_MOD]                             // [P_MOD, p.y % P_MOD, p.x, p.y]
+    sub                                 // [P_MOD - p.y % P_MOD, p.x, p.y]
+    swap2                               // [p.y, p.x, P_MOD - p.y % P_MOD]
+    pop                                 // [p.x, P_MOD - p.y % P_MOD]
+}
+
+/// @dev Negates the base point of the Bn256 curve. This is a specialized case of point negation for the curve's base point.
+/// @param scalar The scalar value to be negated.
+/// @return The negated base point on the Bn256 curve.
+#define macro NEGATE_BASE() = takes (1) returns (1) {
+                                        // [scalar]
+    [P_MOD]                             // [P_MOD, scalar]
+    swap1                               // [scalar, P_MOD]
+    mod                                 // [scalar % P_MOD]
+    [P_MOD]                             // [P_MOD, scalar % P_MOD]
+    sub                                 // [P_MOD - scalar % P_MOD]
+}
+
+/// @dev Negates a scalar value. This operation performs modular arithmetic negation of a scalar.
+/// @param scalar The scalar value to be negated.
+/// @return The negated scalar value.
+#define macro NEGATE_SCALAR() = takes (1) returns (1) {
+                                        // [scalar]
+    [R_MOD]                             // [R_MOD, scalar]
+    swap1                               // [scalar, R_MOD]
+    mod                                 // [scalar % R_MOD]
+    [R_MOD]                             // [R_MOD, scalar % R_MOD]
+    sub                                 // [R_MOD - (scalar % R_MOD)]
+}
+
+/// @dev Checks if a given point is the identity element (also known as the point at infinity) on the Bn256 curve.
+///      The identity element also serves the group's neutral element.
+/// @param p The point on the Bn256 curve to be checked.
+/// @return bool. True if the point is the identity element, False otherwise.
+#define macro IS_IDENTITY() = takes (2) returns (1) {
+                                        // [p.x, p.y]
+    iszero                              // [0 == p.x, p.y]
+    swap1                               // [p.y, 0 == p.x]
+    iszero                              // [0 == p.y, 0 == p.x]
+    and                                 // [(0 == p.y) & (0 == p.x)]
+}
+
+/// @dev This function takes a Bn256 compressed point and returns its uncompressed form.
+/// @param compressed The compressed point on the Bn256 curve.
+/// @return The decompressed point, including both x and y coordinates.
+#define macro DECOMPRESS(mem_ptr, ZERO) = takes (1) returns (2) {
+                                        // [compressed]
+    dup1                                // [compressed, compressed]
+    <ZERO>                              // [0, compressed, compressed]
+    byte                                // [compressed[0], compressed]
+    dup1                                // [compressed[0], compressed[0], compressed]
+    [SIX]                               // [6, compressed[0], compressed[0], compressed]
+    shr                                 // [y_sign, compressed[0] >> 6, compressed[0], compressed]
+    swap1                               // [compressed[0], y_sign, compressed]
+    [SEVEN]                             // [7, compressed[0], y_sign, compressed]
+    shr                                 // [is_inf = compressed[0] >> 7, y_sign, compressed]
+    0x3FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF  // [0x3FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF, is_inf, y_sign, compressed]
+    dup4                                // [compressed, 0x3FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF, is_inf, y_sign, compressed]
+    and                                 // [x = compressed & 0x3FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF, is_inf, y_sign, compressed]
+    swap1                               // [is_inf, x, y_sign, compressed]
+    iszero                              // [0 == is_inf, x, y_sign, compressed]
+    dup2                                // [x, 0 == is_inf, x, y_sign, compressed]
+    iszero                              // [0 == x, 0 == is_inf, x, y_sign, compressed]
+    and                                 // [(0 == x) & (0 == is_inf), x, y_sign, compressed]
+    iszero                              // [iszero((0 == x) & (0 == is_inf)), x, y_sign, compressed]
+    continue                            // [jump_dest, iszero((0 == x) & (0 == is_inf)), x, y_sign, compressed]
+    jumpi                               // [x, y_sign, compressed]
+
+    pop pop pop                         // []
+    <ZERO>
+    <ZERO>
+
+    finish
+    jump
+
+    continue:
+                                        // [x, y_sign, compressed]
+        swap2                           // [compressed, y_sign, x]
+        pop                             // [y_sign, x]
+        [ONE]                           // [1, y_sign, x]
+        and                             // [y_sign = 1 & y_sign, x]
+        [P_MOD]                         // [P_MOD, y_sign, x]
+        dup3                            // [x, P_MOD, y_sign, x]
+        dup1                            // [x, x, P_MOD, y_sign, x]
+        mulmod                          // [y = x * x % P_MOD, y_sign, x]
+        dup3                            // [x, y, y_sign, x]
+        [P_MOD]                         // [P_MOD, x, y, y_sign, x]
+        swap2                           // [y, x, P_MOD, y_sign, x]
+        mulmod                          // [y = y * x % P_MOD, y_sign, x]
+        [BN256_B]                       // [BN256_B, y, y_sign, x]
+        [P_MOD]                         // [P_MOD, BN256_B, y, y_sign, x]
+        swap2                           // [y, BN256_B, P_MOD, y_sign, x]
+        addmod                          // [y = y + BN256_B % P_MOD, y_sign, x]
+        [P_MOD]                         // [P_MOD, y, y_sign, x]
+        swap1                           // [y, P_MOD, y_sign, x]
+        SQRT(<mem_ptr>, <ZERO>)         // [y = SQRT(y, P_MOD), y_sign, x]
+        dup1                            // [y, y, y_sign, x]
+        0xff                            // [255, y, y, y_sign, x]
+        and                             // [and(255, y), y, y_sign, x]
+        [ONE]                           // [1, and(255, y), y, y_sign, x]
+        and                             // [sign = and(1, and(255, y)), y, y_sign, x]
+        dup3                            // [y_sign, sign, y, y_sign, x]
+        xor                             // [y_sign ^ sign, y, y_sign, x]
+        [ONE]                           // [1, y_sign ^ sign, y, y_sign, x]
+        eq                              // [1 == (y_sign ^ sign), y, y_sign, x]
+        iszero                          // [iszero(1 == (y_sign ^ sign)), y, y_sign, x]
+        finish                          // [jump_dest, iszero(1 == (y_sign ^ sign)), y, y_sign, x]
+        jumpi                           // [y, y_sign, x]
+
+        NEGATE_BASE()                   // [y = NEGATE_BASE(y), y_sign, x]
+
+        finish:
+            swap2                       // [x, y_sign, y]
+            swap1                       // [y_sign, x, y]
+            pop                         // [x, y]
+}
