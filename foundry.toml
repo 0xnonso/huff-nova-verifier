@@ -1,7 +1,7 @@
 
 [profile.default]
 solc_version = '0.8.20'
-evm_version = 'shanghai'
+evm_version = 'cancun'
 auto_detect_solc = false
 optimizer = true
 optimizer_runs = 200 # Default amount
@@ -19,4 +19,5 @@ fs_permissions = [
 remappings = [
   "forge-std=lib/forge-std/src/",
   "foundry-huff=lib/foundry-huff/src/",
+  "huff-console=lib/Huff-Console/src/",
 ]

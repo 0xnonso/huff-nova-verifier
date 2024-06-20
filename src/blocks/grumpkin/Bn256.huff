@@ -71,14 +71,14 @@
     gas                                 // [gas, address(0x07), 0, mem_ptr, 96, result, 64]
     call                                // [success]
 
-    continue                            // [jump_dest, success]
+    continue0                           // [jump_dest, success]
     jumpi                               // []
 
     <ZERO>
     <ZERO>
     revert
 
-    continue:
+    continue0:
         [THIRTY_TWO]                    // [32]
         mload                           // [out.y = mload(32)]
         <ZERO>                          // [0, out.y]
@@ -99,15 +99,21 @@
     mload                               // [len_1 = mload(mem_ptr_1), len_2, mem_ptr_2]
     dup3                                // [len_2, len_1, mem_ptr_1, len_2, mem_ptr_2]
     eq                                  // [len_2 == len_1, mem_ptr_1, len_2, mem_ptr_2]
-    continue                            // [jump_dest, len_2 == len_1, mem_ptr_1, len_2, mem_ptr_2]
+    continue1                           // [jump_dest, len_2 == len_1, mem_ptr_1, len_2, mem_ptr_2]
     jumpi                               // [mem_ptr_1, len_2, mem_ptr_2]
 
     <ZERO>
     <ZERO>
     revert
 
-    continue:
+    continue1:
                                         // [mem_ptr_1, len_2, mem_ptr_2]
+        0x20                            // [32, mem_ptr_1, len_2, mem_ptr_2]
+        add                             // [mem_ptr_1 = 32 + mem_ptr_1, len_2, mem_ptr_2]
+        swap2                           // [mem_ptr_2, len_2, mem_ptr_1]
+        0x20                            // [32, mem_ptr_2, len_2, mem_ptr_1]
+        add                             // [mem_ptr_2 = 32 + mem_ptr_2, len_2, mem_ptr_1]
+        swap2                           // [mem_ptr_1, len_2, mem_ptr_2]
         [ONE]                           // [i = 1, mem_ptr_1, len_2, mem_ptr_2]
         dup4                            // [mem_ptr_2, i, mem_ptr_1, len_2, mem_ptr_2]
         mload                           // [scalar = mload(mem_ptr_2), i, mem_ptr_1, len_2, mem_ptr_2]
@@ -117,15 +123,15 @@
         mload                           // [base.y = mload(32 + mem_ptr_1), scalar, i, mem_ptr_1, len_2, mem_ptr_2]
         dup4                            // [mem_ptr_1, base.y, scalar, i, mem_ptr_1, len_2, mem_ptr_2]
         mload                           // [base.x = mload(mem_ptr_1), base.y, scalar, i, mem_ptr_1, len_2, mem_ptr_2]
-        SCALAR_MUL(<mem_ptr>)           // [r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        SCALAR_MUL(<mem_ptr>, <ZERO>)   // [r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
         dup5                            // [len_2, r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
         dup4                            // [i, len_2, r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
         lt                              // [i < len_2, r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
         iszero                          // [iszero(i < len_2), r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
-        finish                          // [jump_dest, iszero(i < len_2), r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        finish1                         // [jump_dest, iszero(i < len_2), r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
         jumpi                           // [r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
 
-    loop:
+    loop1:
                                         // [r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
         dup3                            // [i, r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
         0x20                            // [32, i, r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
@@ -146,13 +152,17 @@
         mload                           // [bases.x = mload(mem_ptr_1 + (64 * i)), bases.y, scalar, r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
         SCALAR_MUL(<mem_ptr>, <ZERO>)   // [r0.x, r0.y, r.x, r.y, i, mem_ptr_1, len_2, mem_ptr_2]
         ADD(<mem_ptr>, <ZERO>)          // [r1.x, r1.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        swap2                           // [i, r1.y, r1.x,, mem_ptr_1, len_2, mem_ptr_2]
+        [ONE]                           // [1, i, r1.y, r1.x,, mem_ptr_1, len_2, mem_ptr_2]
+        add                             // [i = 1 + i, r1.y, r1.x,, mem_ptr_1, len_2, mem_ptr_2]
+        swap2                           // [r1.x, r1.y, i,, mem_ptr_1, len_2, mem_ptr_2]
         dup5                            // [len_2, r1.x, r1.y, i, mem_ptr_1, len_2, mem_ptr_2]
         dup4                            // [i, len_2, r1.x, r1.y, i, mem_ptr_1, len_2, mem_ptr_2]
         lt                              // [i < len_2, r1.x, r1.y, i, mem_ptr_1, len_2, mem_ptr_2]
-        loop                            // [jump_dest, i < len_2, r1.x, r1.y, i, mem_ptr_1, len_2, mem_ptr_2]
+        loop1                           // [jump_dest, i < len_2, r1.x, r1.y, i, mem_ptr_1, len_2, mem_ptr_2]
         jumpi                           // [r1.x, r1.y, i, mem_ptr_1, len_2, mem_ptr_2]
 
-    finish:
+    finish1:
                                         // [r1.x, r1.y, i, mem_ptr_1, len_2, mem_ptr_2]
         swap4                           // [len_2, r1.y, i, mem_ptr_1, r1.x, mem_ptr_2]
         pop                             // [r1.y, i, mem_ptr_1, r1.x, mem_ptr_2]
