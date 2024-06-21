@@ -5,28 +5,12 @@ import "foundry-huff/HuffDeployer.sol";
 import "forge-std/Test.sol";
 import "forge-std/console2.sol";
 import {IField} from "../utils/Field.t.sol";
-
-struct PallasAffinePoint {
-    uint256 x;
-    uint256 y;
-}
-
-struct PallasProjectivePoint {
-    uint256 x;
-    uint256 y;
-    uint256 z;
-}
-
-struct VestaAffinePoint {
-    uint256 x;
-    uint256 y;
-}
-
-struct VestaProjectivePoint {
-    uint256 x;
-    uint256 y;
-    uint256 z;
-}
+import {
+    PallasAffinePoint, 
+    PallasProjectivePoint,
+    VestaAffinePoint,
+    VestaProjectivePoint
+    }  from "./Structs.sol";
 
 interface IVesta {
     function AffineGenerator() external pure returns (VestaAffinePoint memory);

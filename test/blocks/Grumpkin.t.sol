@@ -4,21 +4,15 @@ pragma solidity ^0.8.16;
 import "foundry-huff/HuffDeployer.sol";
 import "forge-std/Test.sol";
 import "forge-std/console2.sol";
-
-struct Bn256AffinePoint {
-    uint256 x;
-    uint256 y;
-}
-
-struct GrumpkinAffinePoint {
-    uint256 x;
-    uint256 y;
-}
+import {
+    Bn256AffinePoint, 
+    GrumpkinAffinePoint
+    }  from "./Structs.sol";
 
 interface IBn256 {
     function add(Bn256AffinePoint memory p1, Bn256AffinePoint memory p2) external returns (Bn256AffinePoint memory);
     function scalarMul(Bn256AffinePoint memory point, uint256 scalar) external returns (Bn256AffinePoint memory);
-    function multiScalarMul(Bn256AffinePoint[] memory bases, uint256[] memory scalars) external returns (Bn256AffinePoint memory r);
+    function multiScalarMul(Bn256AffinePoint[] memory bases, uint256[] memory scalars) external returns (Bn256AffinePoint memory);
     function negate(Bn256AffinePoint memory point) external pure returns (Bn256AffinePoint memory);
     function negateBase(uint256 scalar) external pure returns (uint256);
     function negateScalar(uint256 scalar) external pure returns (uint256);
