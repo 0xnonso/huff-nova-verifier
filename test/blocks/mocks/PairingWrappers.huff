@@ -1,0 +1,21 @@
+// #include "huff-console/Console.huff"
+#define macro PAIRING_PROD_2_WRAPPER() = {
+    calldatasize
+    0x00
+    0x00
+    calldatacopy
+
+    0x04
+    0x200
+
+    PAIRING_PROD_2(0x400, 0x0)
+
+    0x00
+    mstore
+
+    0x20 0x00 return
+}
+
+#define macro MAIN() = takes (0) returns (0) {
+    PAIRING_PROD_2_WRAPPER()
+}

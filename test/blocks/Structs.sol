@@ -31,3 +31,14 @@ struct GrumpkinAffinePoint {
     uint256 x;
     uint256 y;
 }
+
+// Represents a point on G1 (first group of BN256 curve).
+struct G1Point {
+    Bn256AffinePoint inner;
+}
+
+// Represents a point on G2 (second group of BN256 curve).
+struct G2Point {
+    uint256[2] X;
+    uint256[2] Y;
+}
