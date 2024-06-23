@@ -4,6 +4,7 @@ pragma solidity ^0.8.16;
 import "foundry-huff/HuffDeployer.sol";
 import "forge-std/Test.sol";
 import "forge-std/console2.sol";
+import {IField} from "../utils/Field.t.sol";
 import {
     Bn256AffinePoint, 
     GrumpkinAffinePoint
@@ -40,8 +41,12 @@ interface IGrumpkin {
 contract GrumpkinCurvesContractTests is Test {
     IGrumpkin grumpkin;
     IBn256 bn256;
+    IField field;
 
     function setUp() public {
+        string memory field_wrappers = vm.readFile("test/utils/mocks/FieldWrappers.huff");
+        field = IField(HuffDeployer.deploy_with_code("utils/Field", field_wrappers));
+
         string memory grumpkin_wrappers = vm.readFile("test/blocks/mocks/grumpkin/GrumpkinWrappers.huff");
         grumpkin = IGrumpkin(HuffDeployer.deploy_with_code("blocks/grumpkin/Grumpkin", grumpkin_wrappers));
 
@@ -324,12 +329,12 @@ contract GrumpkinCurvesContractTests is Test {
     }
 
     function testGrumpkinDecompression1() public {
-        // uint256 compressedGrumpkinPoint =
-        //     field.reverse256(0x88bed3689a94506fe46065e5600749882804d3bf4793864638f641b3b2325157);
+        uint256 compressedGrumpkinPoint =
+            field.reverse256(0x88bed3689a94506fe46065e5600749882804d3bf4793864638f641b3b2325157);
 
-        // GrumpkinAffinePoint memory point = grumpkin.decompress(compressedGrumpkinPoint);
+        GrumpkinAffinePoint memory point = grumpkin.decompress(compressedGrumpkinPoint);
 
-        // assertEq(point.x, 0x175132b2b341f63846869347bfd3042888490760e56560e46f50949a68d3be88);
-        // assertEq(point.y, 0x2f7039df869b2f301490e03faedf85d7b6079ee4e389fb09e87425446ec2133d);
+        assertEq(point.x, 0x175132b2b341f63846869347bfd3042888490760e56560e46f50949a68d3be88);
+        assertEq(point.y, 0x2f7039df869b2f301490e03faedf85d7b6079ee4e389fb09e87425446ec2133d);
     }
 }

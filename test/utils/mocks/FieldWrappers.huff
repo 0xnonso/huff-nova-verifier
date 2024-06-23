@@ -1,3 +1,5 @@
+// #include "huff-console/Console.huff"
+
 #define function invert(uint256 _x, uint256 _mod) pure returns (uint256 output)
 #define function fieldpow(uint256 _base, uint256 _exp, uint256 _mod) pure returns (uint256 result)
 #define function powSmall(uint256 base, uint256 exponent, uint256 modulus) pure returns (uint256)
@@ -21,11 +23,19 @@
     0x20 0x00 return
 }
 
+#define macro REVERSE_256_WRAPPER() = {
+    0x04 calldataload
+    REVERSE_256()
+    0x00 mstore
+    0x20 0x00 return
+}
+
 #define macro MAIN() = takes (0) returns (0) {
     0x00 calldataload 0xE0 shr
 
     dup1 __FUNC_SIG(invert) eq invert jumpi
     dup1 __FUNC_SIG(powSmall) eq powSmall jumpi
+    dup1 __FUNC_SIG(reverse256) eq reverse256 jumpi
 
     0x00 0x00 revert
 
@@ -33,4 +43,6 @@
         INVERT_WRAPPER()
     powSmall:
         POW_SMALL_WRAPPER()
+    reverse256:
+        REVERSE_256_WRAPPER()
 }

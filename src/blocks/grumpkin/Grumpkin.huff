@@ -847,7 +847,7 @@
         finish0                         // [jump_dest, iszero(1 == (y_sign ^ sign)), y, y_sign, x]
         jumpi                           // [y, y_sign, x]
 
-        NEGATE_BASE()                   // [y = NEGATE_BASE(y), y_sign, x]
+        NEGATE_SCALAR()                 // [y = NEGATE_SCALAR(y), y_sign, x]
 
         finish0:
             swap2                       // [x, y_sign, y]
