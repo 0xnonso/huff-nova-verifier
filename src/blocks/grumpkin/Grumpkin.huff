@@ -710,14 +710,14 @@
     mload                               // [bases_len = mload(mem_ptr_1), scalars_len, mem_ptr_1, mem_ptr_2]
     dup2                                // [scalars_len, bases_len, scalars_len, mem_ptr_1, mem_ptr_2]
     eq                                  // [scalars_len == bases_len, scalars_len, mem_ptr_1, mem_ptr_2]
-    continue                            // [jump_dest, scalars_len == bases_len, scalars_len, mem_ptr_1, mem_ptr_2]
+    continue10                           // [jump_dest, scalars_len == bases_len, scalars_len, mem_ptr_1, mem_ptr_2]
     jumpi                               // [scalars_len, mem_ptr_1, mem_ptr_2]
 
     <ZERO>
     <ZERO>
     revert
 
-    continue:
+    continue10:
                                         // [scalars_len, mem_ptr_1, mem_ptr_2]
         dup3                            // [mem_ptr_2, scalars_len, mem_ptr_1, mem_ptr_2]
         0x20                            // [32, mem_ptr_2, scalars_len, mem_ptr_1, mem_ptr_2]
@@ -742,7 +742,7 @@
         mload
         SCALAR_MUL(<mem_ptr>, <ZERO>)
 
-    loop:
+    loop10:
                                         // [r.x, r.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
         dup3                            // [i, r.x, r.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
         0x20                            // [32, i, r.x, r.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
@@ -762,7 +762,7 @@
         mload                           // [b.y = mload(0x20 + ext_mem_ptr_1 + (2 * 32 * i)), ext_mem_ptr_1 + (2 * 32 * i), s, r.x, r.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
         swap1                           // [ext_mem_ptr_1 + (2 * 32 * i), b.y, s, r.x, r.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
         mload                           // [b.x = mload(ext_mem_ptr_1 + (2 * 32 * i)), b.y, s, r.x, r.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
-        SCALAR_MUL(<ZERO>)              // [r0.x, r0.y, r.x, r.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        SCALAR_MUL(<mem_ptr>, <ZERO>)   // [r0.x, r0.y, r.x, r.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
         ADD(<mem_ptr>, <ZERO>)          // [r1.x, r1.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
         dup3                            // [i, r1.x, r1.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
         [ONE]                           // [1, i, r1.x, r1.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
@@ -772,12 +772,12 @@
         dup4                            // [scalars_len, r1.x, r1.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
         dup4                            // [i, scalars_len, r1.x, r1.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
         lt                              // [i < scalars_len, r1.x, r1.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
-        loop                            // [jump_dest, i < scalars_len, r1.x, r1.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
+        loop10                          // [jump_dest, i < scalars_len, r1.x, r1.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
         jumpi                           // [r1.x, r1.y, i, scalars_len, ext_mem_ptr_1, ext_mem_ptr_2]
 
-        swap4 pop                       // [r1.y, i, scalars_len, r1.x, ext_mem_ptr_2]
-        swap4 pop                       // [i, scalars_len, r1.x, r1.y]
-        pop pop                         // [r1.x, r1.y]
+    swap4 pop                           // [r1.y, i, scalars_len, r1.x, ext_mem_ptr_2]
+    swap4 pop                           // [i, scalars_len, r1.x, r1.y]
+    pop pop                             // [r1.x, r1.y]
 }
 
 /// @dev This function converts the compressed Grumpkin point back into the full point representation.
@@ -861,21 +861,23 @@
                                         // [segment, c, scalar]
     dup2                                // [c, segment, c, scalar]
     mul                                 // [skipBits = c * segment, c, scalar]
-    dup1                                // [skipBits, skipBits, c, scalar]
-    0xff                                // [255, skipBits, skipBits, c, scalar]
-    lt                                  // [255 < skipBits, skipBits, c, scalar]
-    continue                            // [jumpdest, 255 < skipBits, skipBits, c, scalar]
+    0xff                                // [255, skipBits, c, scalar]
+    dup2                                // [skipBits, 255, skipBits, c, scalar]
+    gt                                  // [skipBits < 255, skipBits, c, scalar]
+    iszero                              // [iszero(skipBits < 255), skipBits, c, scalar]
+    continue0                           // [jumpdest, iszero(255 < skipBits), skipBits, c, scalar]
     jumpi                               // [skipBits, c, scalar]
 
     pop pop pop
     <ZERO>
-    finish
+    finish0
     jump
 
-    continue:
+    continue0:
                                         // [skipBits, c, scalar]
         dup2                            // [c, skipBits, c, scalar]
         [ONE]                           // [1, c, skipBits, c, scalar]
+        swap1                           // [c, 1, skipBits, c, scalar]
         shl                             // [c << 1, skipBits, c, scalar]
         swap3                           // [scalar, skipBits, c, 1 << c]
         swap1                           // [skipBits, scalar, c, 1 << c]
@@ -884,7 +886,7 @@
         pop                             // [scalar >> skipBits, 1 << c]
         mod                             // [(scalar >> skipBits) % (1 << c)]
 
-    finish:
+    finish0:
 }
 
 #define macro MULTI_SCALAR_MUL_SERIAL() = takes (2) returns (2) {

@@ -16,6 +16,7 @@ fs_permissions = [
   { access = "read", path = "./test/blocks/mocks/pasta/PallasWrappers.huff" },
   { access = "read", path = "./test/blocks/mocks/pasta/VestaWrappers.huff" },
   { access = "read", path = "./test/blocks/mocks/PairingWrappers.huff" },
+  { access = "read", path = "./test/blocks/mocks/grumpkin/GrumpkinMultiScalarMulWrappers.huff" }
 ]
 remappings = [
   "forge-std=lib/forge-std/src/",

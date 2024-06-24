@@ -1,0 +1,50 @@
+// #include "huff-console/Console.huff"
+
+#define macro MULTI_SCALAR_MUL_WRAPPER() = {
+    calldatasize
+    0x00
+    0x100
+    calldatacopy
+
+    0x104
+    0x124
+    mload
+    add
+    0x144
+    MULTI_SCALAR_MUL(0x0, 0x0)
+    0x00 mstore
+    0x20 mstore
+    0x40 0x00 return
+}
+
+#define macro GET_AT_WRAPPER() = {
+    0x44 calldataload
+    0x24 calldataload
+    0x04 calldataload
+    GET_AT(0x0)
+    0x00 mstore
+    0x20 0x00 return
+}
+
+#define macro MULTI_SCALAR_MUL_SERIAL_WRAPPER() = {
+    // MULTI_SCALAR_MUL_SERIAL()
+    // 0x00 0x00 return
+}
+
+
+#define macro MAIN() = takes (0) returns (0) {
+    0x00 calldataload 0xE0 shr
+
+    dup1 0x9a631d04 eq multiScalarMul jumpi
+    dup1 0x433e4e6b eq getAt jumpi
+    // dup1 0x3053f6f1 eq multiScalarMulSerial jumpi
+
+    0x00 0x00 revert
+
+    multiScalarMul:
+        MULTI_SCALAR_MUL_WRAPPER()
+    getAt:
+        GET_AT_WRAPPER()
+    // multiScalarMulSerial:
+    //     MULTI_SCALAR_MUL_SERIAL_WRAPPER()
+}
