@@ -1,0 +1,68 @@
+/// SPDX-License-Identifier: MIT
+#include "../Constants.huff"
+
+/// @notice Evaluate the Identity Polynomial with given 'r' values.
+/// @dev Calculates the identity polynomial by iterating over each element of the 'r' array. Each element is scaled by a power of 2 based on its position and then reduced modulo the given modulus.
+/// @param r_mem_ptr Memory pointer to array of 'r' values, inputs to the polynomial.
+/// @param modulus The modulus for performing operations in a finite field.
+/// @return The result of the polynomial evaluation.
+#define macro EVALUATE(ZERO) = takes (2) returns (1) {
+                                        // [r_mem_ptr, modulus]
+    dup1                                // [r_mem_ptr, r_mem_ptr, modulus]
+    0x20                                // [32, r_mem_ptr, r_mem_ptr, modulus]
+    add                                 // [32 + r_mem_ptr, r_mem_ptr, modulus]
+    swap1                               // [r_mem_ptr, 32 + r_mem_ptr, modulus]
+    mload                               // [r_len = mload(r_mem_ptr), ext_r_mem_ptr, modulus]
+    <ZERO>                              // [result = 0, r_len, ext_r_mem_ptr, modulus]
+    <ZERO>                              // [tmp = 0, result, r_len, ext_r_mem_ptr, modulus]
+    <ZERO>                              // [index = 0, tmp, result, r_len, ext_r_mem_ptr, modulus]
+    dup4                                // [r_len, index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+    loop02                              // [jump_dest, r_len, index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+    jumpi                               // [index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+
+    pop pop                             // [result, r_len, ext_r_mem_ptr, modulus]
+    swap3                               // [modulus, r_len, ext_r_mem_ptr, result]
+    pop pop pop                         // [result]
+    
+    finish0
+    jump
+
+    loop02:
+                                        // [index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+        dup6                            // [modulus, index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+        dup2                            // [index, modulus, index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+        0x20                            // [32, index, modulus, index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+        mul                             // [32 * index, modulus, index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+        dup7                            // [ext_r_mem_ptr, 32 * index, modulus, index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+        add                             // [ext_r_mem_ptr + (32 * index), modulus, index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+        mload                           // [mload(ext_r_mem_ptr + (32 * index)), modulus, index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+        [ONE]                           // [1, mload(ext_r_mem_ptr + (32 * index)), modulus, index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+        dup4                            // [index, 1, mload(ext_r_mem_ptr + (32 * index)), modulus, index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+        dup8                            // [r_len, index, 1, mload(ext_r_mem_ptr + (32 * index)), modulus, index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+        sub                             // [(r_len - index), 1, mload(ext_r_mem_ptr + (32 * index)), modulus, index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+        sub                             // [(r_len - index) - 1, mload(ext_r_mem_ptr + (32 * index)), modulus, index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+        [TWO]                           // [2, (r_len - index) - 1, mload(ext_r_mem_ptr + (32 * index)), modulus, index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+        exp                             // [2 ** ((r_len - index) - 1), mload(ext_r_mem_ptr + (32 * index)), modulus, index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+        mulmod                          // [tmp = 2 ** ((r_len - index) - 1) * mload(ext_r_mem_ptr + (32 * index)) % modulus, index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+        swap2                           // [tmp, index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+        pop                             // [index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+        dup6                            // [modulus, index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+        dup4                            // [result, modulus, index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+        dup4                            // [tmp, result, modulus, index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+        addmod                          // [result = tmp + result % modulus, index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+        swap3                           // [result, index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+        pop                             // [index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+        [ONE]                           // [1 + index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+        add                             // [index = 1 + index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+        dup4                            // [r_len, index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+        dup2                            // [index, r_len, index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+        lt                              // [index < r_len, index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+        loop02                          // [jump_dest, index < r_len, index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+        jumpi                           // [index < r_len, index, tmp, result, r_len, ext_r_mem_ptr, modulus]
+    
+    pop pop
+    swap3
+    pop pop pop
+
+    finish0:
+}

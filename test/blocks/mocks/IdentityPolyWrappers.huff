@@ -1,0 +1,21 @@
+// #include "huff-console/Console.huff"
+#define macro EVALUATE_WRAPPER() = {
+    0x40
+    calldatasize
+    sub
+    0x44
+    0x0
+    calldatacopy
+
+    0x24
+    calldataload
+    0x0
+    EVALUATE(0x0)
+
+    0x00 mstore
+    0x20 0x00 return
+}
+
+#define macro MAIN() = takes (0) returns (0) {
+    EVALUATE_WRAPPER()
+}
